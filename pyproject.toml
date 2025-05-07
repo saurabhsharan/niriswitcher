@@ -1,0 +1,19 @@
+[project]
+name = "niriswitcher"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Isak Samsten", email = "isak@samsten.se" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "pygobject>=3.52.3",
+]
+
+[project.scripts]
+niriswitcher = "niriswitcher:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

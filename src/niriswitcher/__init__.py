@@ -195,7 +195,7 @@ class IconStripWindow(Gtk.Window):
         self.set_default_size(-1, 100)
 
         self.icons = []
-        self.selected_icon = None
+        self.selected_index = None
         self.main_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.main_view.add_css_class("main-view")
         self.main_view.set_halign(Gtk.Align.CENTER)
@@ -239,7 +239,7 @@ class IconStripWindow(Gtk.Window):
         for icon in self.icons:
             self.icon_hbox.remove(icon)
         self.icons.clear()
-        self.selected_icon = None
+        self.selected_index = None
 
     def add_app_icon(self, window):
         app_info = get_app_info(window)
@@ -253,29 +253,29 @@ class IconStripWindow(Gtk.Window):
         self.icon_hbox.append(box)
 
     def hide_and_activate_window(self):
-        if self.selected_icon is not None:
+        if self.selected_index is not None:
             selected = self.get_selected_icon()
             subprocess.call(
                 ["niri", "msg", "action", "focus-window", "--id", str(selected.id)]
             )
-            self.selected_icon = None
+            self.selected_index = None
             self.hide()
 
     def quit_selected(self):
-        if self.selected_icon is not None:
+        if self.selected_index is not None:
             selected = self.get_selected_icon()
             subprocess.call(
                 ["niri", "msg", "action", "close-window", "--id", str(selected.id)]
             )
-            selected_index = self.selected_icon
+            selected_index = self.selected_index
             self.icon_hbox.remove(selected)
             self.icons.remove(selected)
             if len(self.icons) > 0:
                 self.resize_to_fit()
-                self.selected_icon = None
+                self.selected_index = None
                 self.select(max(0, selected_index - 1))
             else:
-                self.selected_icon = None
+                self.selected_index = None
                 self.hide()
 
     def resize_to_fit(self):
@@ -286,33 +286,33 @@ class IconStripWindow(Gtk.Window):
         self.scrollarea.set_size_request(size, -1)
 
     def get_selected_icon(self):
-        if self.selected_icon is not None and self.selected_icon < len(self.icons):
-            return self.icons[self.selected_icon]
+        if self.selected_index is not None and self.selected_index < len(self.icons):
+            return self.icons[self.selected_index]
 
     def select(self, index):
-        if self.selected_icon is not None:
-            self.icons[self.selected_icon].deselect()
+        if self.selected_index is not None:
+            self.icons[self.selected_index].deselect()
 
-        self.selected_icon = index
-        selected = self.icons[self.selected_icon]
+        self.selected_index = index
+        selected = self.icons[self.selected_index]
         selected.select()
         self.title.set_label(selected.title)
         GLib.idle_add(scroll_child_into_view, self.scrollarea, selected)
 
     def select_next(self):
-        if self.selected_icon is not None:
-            self.icons[self.selected_icon].deselect()
-            self.selected_icon = (self.selected_icon + 1) % len(self.icons)
-            selected = self.icons[self.selected_icon]
+        if self.selected_index is not None:
+            self.icons[self.selected_index].deselect()
+            self.selected_index = (self.selected_index + 1) % len(self.icons)
+            selected = self.icons[self.selected_index]
             selected.select()
             self.title.set_label(selected.title)
             GLib.idle_add(scroll_child_into_view, self.scrollarea, selected)
 
     def select_prev(self):
-        if self.selected_icon is not None:
-            self.icons[self.selected_icon].deselect()
-            self.selected_icon = (self.selected_icon - 1) % len(self.icons)
-            selected = self.icons[self.selected_icon]
+        if self.selected_index is not None:
+            self.icons[self.selected_index].deselect()
+            self.selected_index = (self.selected_index - 1) % len(self.icons)
+            selected = self.icons[self.selected_index]
             selected.select()
             self.title.set_label(selected.title)
             GLib.idle_add(scroll_child_into_view, self.scrollarea, selected)

@@ -1,4 +1,4 @@
-.main-window {
+.niriswitcher-window {
     background-color: rgba(76,76,76,.95);
     border-radius: 22px;
     padding: 20px;
@@ -12,7 +12,7 @@ scrollbar, scrollbar * {
 }
 
 
-.title {
+.application-title {
     background: transparent;
     color: white;
 }
@@ -24,34 +24,33 @@ scrollbar slider {
     min-height: 6px;
 }
 
-.icon-strip {
+.application-strip {
     padding: 10px;
 }
 
-.icon-strip-scroll {
+.application-strip-scroll {
 }
 
-.iconbox {
-  transition: all 0.5s ease;
+.application-area {
   background-color: transparent;
 }
 
-.icon {
+.application-icon {
     padding: 10px;
 }
 
-.icon-text {
+.application-name {
   transition: all 0.2s ease;
   opacity: 0;
   color: white;
 }
 
 
-.iconbox.selected .icon-text {
+.application-area.selected .application-name {
   opacity: 1;
 }
 
-.iconbox.selected .icon {
+.application-area.selected .application-icon {
     padding: 9px;
     border: 1px solid rgba(44,44,44,0.95);
     border-radius: 8px;

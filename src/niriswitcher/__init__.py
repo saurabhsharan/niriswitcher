@@ -58,7 +58,7 @@ def on_key_release(controller, keyval, keycode, state, win):
     hides and activates the currently selected window.
     """
     if keyval in (Gdk.KEY_Alt_L, Gdk.KEY_Alt_R):
-        win.hide_and_activate_window()
+        win.activate_selected_window()
         return True
     return False
 
@@ -80,28 +80,19 @@ def on_press_key(controller, keyval, keycode, state, win):
         and (state & Gdk.ModifierType.ALT_MASK)  # Alt is held
         and (state & Gdk.ModifierType.SHIFT_MASK)
     ):
-        win.select_prev()
+        win.select_prev_application()
     elif (
         is_tab_combo(keyval) and (state & Gdk.ModifierType.ALT_MASK)  # Alt is held
     ):
-        win.select_next()
+        win.select_next_application()
     elif keyval == Gdk.KEY_Escape:
         win.hide()
     elif keyval == Gdk.KEY_q:
-        win.quit_selected()
+        win.close_selected_window()
 
 
-class IconBox(Gtk.Box):
+class ApplicationArea(Gtk.Box):
     def __init__(self, id, icon, name, title):
-        """
-        Initializes a new instance of the class with the specified ID, icon, name, and title.
-
-        Args:
-            id: The unique identifier for the instance.
-            icon: The Gtk widget representing the icon to be displayed.
-            name: The display name for the instance.
-            title: The title associated with the instance.
-        """
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.id = id
         self.title = title
@@ -112,10 +103,9 @@ class IconBox(Gtk.Box):
         self.append(icon)
         self.append(name)
 
-        name.add_css_class("icon-text")
-        self.add_css_class("iconbox")
-
-        icon.add_css_class("icon")
+        name.add_css_class("application-name")
+        self.add_css_class("application-area")
+        icon.add_css_class("application-icon")
 
     def select(self):
         self.add_css_class("selected")
@@ -152,10 +142,10 @@ def scroll_child_into_view(scrolled_window, child):
     visible_end = visible_start + hadj.get_page_size()
     if child_x >= visible_start and (child_x + child_width) <= visible_end:
         return
-    # Center the child in the visible area when scrolling
+
     child_center = child_x + child_width / 2
     new_value = child_center - hadj.get_page_size() / 2
-    # Clamp the value to valid range
+
     new_value = max(
         hadj.get_lower(), min(new_value, hadj.get_upper() - hadj.get_page_size())
     )
@@ -177,52 +167,56 @@ def scroll_child_into_view(scrolled_window, child):
         current_value = start_value + delta * eased_t
         hadj.set_value(current_value)
         if t < 1.0:
-            return True  # Continue
+            return True
         else:
             hadj.set_value(new_value)
-            return False  # Stop
+            return False
 
     GLib.timeout_add(16, animate_scroll)
 
 
-class IconStripWindow(Gtk.Window):
+class ApplicationSwitcherWindow(Gtk.Window):
     def __init__(self, app):
         super().__init__(application=app, title="niriswitcher")
         self.key_controller = Gtk.EventControllerKey.new()
         self.add_controller(self.key_controller)
-        self.add_css_class("main-window")
+        self.add_css_class("niriswitcher-window")
 
         self.set_default_size(-1, 100)
 
-        self.icons = []
-        self.selected_index = None
-        self.main_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.main_view.add_css_class("main-view")
-        self.main_view.set_halign(Gtk.Align.CENTER)
-        self.main_view.set_valign(Gtk.Align.CENTER)
+        self.application_strip = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=6
+        )
+        self.application_strip.add_css_class("application-strip")
 
-        self.icon_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        self.icon_hbox.add_css_class("icon-strip")
+        self.current_application_title = Gtk.Label()
+        self.current_application_title.set_ellipsize(Pango.EllipsizeMode.END)
+        self.current_application_title.set_max_width_chars(1)
+        self.current_application_title.set_hexpand(True)
+        self.current_application_title.add_css_class("application-title")
 
-        self.title = Gtk.Label()
-        self.title.set_ellipsize(Pango.EllipsizeMode.END)
-        self.title.set_max_width_chars(1)
-        self.title.set_hexpand(True)
-        self.title.add_css_class("title")
+        self.application_strip_scroll = Gtk.ScrolledWindow()
+        self.application_strip_scroll.set_policy(
+            Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER
+        )
+        self.application_strip_scroll.set_halign(Gtk.Align.CENTER)
+        self.application_strip_scroll.set_child(self.application_strip)
+        self.application_strip_scroll.add_css_class("application-strip-scroll")
 
-        self.scrollarea = Gtk.ScrolledWindow()
-        self.scrollarea.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
-        self.scrollarea.set_halign(Gtk.Align.CENTER)
-        self.scrollarea.set_child(self.icon_hbox)
-        self.scrollarea.add_css_class("icon-strip-scroll")
+        self.switcher_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.switcher_view.add_css_class("switcher-view")
+        self.switcher_view.set_halign(Gtk.Align.CENTER)
+        self.switcher_view.set_valign(Gtk.Align.CENTER)
+        self.switcher_view.append(self.current_application_title)
+        self.switcher_view.append(self.application_strip_scroll)
 
-        self.main_view.append(self.title)
-        self.main_view.append(self.scrollarea)
-
-        self.set_child(self.main_view)
+        self.set_child(self.switcher_view)
         self.set_decorated(False)
         self.set_modal(True)
         self.set_resizable(False)
+
+        self.applications = []
+        self.current_application_index = None
 
         self.key_controller.connect("key-released", on_key_release, self)
         self.key_controller.connect("key-pressed", on_press_key, self)
@@ -232,93 +226,102 @@ class IconStripWindow(Gtk.Window):
         surface = self.get_surface()
         surface.inhibit_system_shortcuts(None)
 
-    def get_current_key_event(self):
-        return self.key_controller.get_current_event()
+    def clear_applications(self):
+        for application in self.applications:
+            self.application_strip.remove(application)
+        self.applications.clear()
+        self.current_application_index = None
 
-    def clear_app_icon(self):
-        for icon in self.icons:
-            self.icon_hbox.remove(icon)
-        self.icons.clear()
-        self.selected_index = None
-
-    def add_app_icon(self, window):
+    def add_application(self, window):
         app_info = get_app_info(window)
         if app_info is None:
             return
 
         icon = new_app_icon_or_default(app_info, 128)
-        box = IconBox(window["id"], icon, app_info.get_name(), window["title"])
+        box = ApplicationArea(window["id"], icon, app_info.get_name(), window["title"])
 
-        self.icons.append(box)
-        self.icon_hbox.append(box)
+        self.applications.append(box)
+        self.application_strip.append(box)
 
-    def hide_and_activate_window(self):
-        if self.selected_index is not None:
-            selected = self.get_selected_icon()
+    def activate_selected_window(self, hide=True):
+        if self.current_application_index is not None:
+            selected = self.get_selected_application()
             subprocess.call(
                 ["niri", "msg", "action", "focus-window", "--id", str(selected.id)]
             )
-            self.selected_index = None
-            self.hide()
+            self.current_application_index = None
+            if hide:
+                self.hide()
 
-    def quit_selected(self):
-        if self.selected_index is not None:
-            selected = self.get_selected_icon()
+    def close_selected_window(self):
+        if self.current_application_index is not None:
+            selected = self.get_selected_application()
             subprocess.call(
                 ["niri", "msg", "action", "close-window", "--id", str(selected.id)]
             )
-            selected_index = self.selected_index
-            self.icon_hbox.remove(selected)
-            self.icons.remove(selected)
-            if len(self.icons) > 0:
+            current_application_index = self.current_application_index
+            self.application_strip.remove(selected)
+            self.applications.remove(selected)
+            if len(self.applications) > 0:
                 self.resize_to_fit()
-                self.selected_index = None
-                self.select(max(0, selected_index - 1))
+                self.current_application_index = None
+                self.select_application(max(0, current_application_index - 1))
             else:
-                self.selected_index = None
+                self.current_application_index = None
                 self.hide()
 
     def resize_to_fit(self):
-        size = self.icon_hbox.get_width()
-        measure = self.icon_hbox.measure(Gtk.Orientation.HORIZONTAL, -1)
+        size = self.application_strip.get_width()
+        measure = self.application_strip.measure(Gtk.Orientation.HORIZONTAL, -1)
         size = min(800, measure.natural)
-        self.main_view.set_size_request(size, -1)
-        self.scrollarea.set_size_request(size, -1)
+        self.switcher_view.set_size_request(size, -1)
+        self.application_strip_scroll.set_size_request(size, -1)
 
-    def get_selected_icon(self):
-        if self.selected_index is not None and self.selected_index < len(self.icons):
-            return self.icons[self.selected_index]
+    def get_selected_application(self):
+        if (
+            self.current_application_index is not None
+            and self.current_application_index < len(self.applications)
+        ):
+            return self.applications[self.current_application_index]
 
-    def select(self, index):
-        if self.selected_index is not None:
-            self.icons[self.selected_index].deselect()
+    def select_application(self, index):
+        if self.current_application_index is not None:
+            self.applications[self.current_application_index].deselect()
 
-        self.selected_index = index
-        selected = self.icons[self.selected_index]
+        self.current_application_index = index
+        selected = self.applications[self.current_application_index]
         selected.select()
-        self.title.set_label(selected.title)
-        GLib.idle_add(scroll_child_into_view, self.scrollarea, selected)
+        self.current_application_title.set_label(selected.title)
+        GLib.idle_add(scroll_child_into_view, self.application_strip_scroll, selected)
 
-    def select_next(self):
-        if self.selected_index is not None:
-            self.icons[self.selected_index].deselect()
-            self.selected_index = (self.selected_index + 1) % len(self.icons)
-            selected = self.icons[self.selected_index]
+    def select_next_application(self):
+        if self.current_application_index is not None:
+            self.applications[self.current_application_index].deselect()
+            self.current_application_index = (self.current_application_index + 1) % len(
+                self.applications
+            )
+            selected = self.applications[self.current_application_index]
             selected.select()
-            self.title.set_label(selected.title)
-            GLib.idle_add(scroll_child_into_view, self.scrollarea, selected)
+            self.current_application_title.set_label(selected.title)
+            GLib.idle_add(
+                scroll_child_into_view, self.application_strip_scroll, selected
+            )
 
-    def select_prev(self):
-        if self.selected_index is not None:
-            self.icons[self.selected_index].deselect()
-            self.selected_index = (self.selected_index - 1) % len(self.icons)
-            selected = self.icons[self.selected_index]
+    def select_prev_application(self):
+        if self.current_application_index is not None:
+            self.applications[self.current_application_index].deselect()
+            self.current_application_index = (self.current_application_index - 1) % len(
+                self.applications
+            )
+            selected = self.applications[self.current_application_index]
             selected.select()
-            self.title.set_label(selected.title)
-            GLib.idle_add(scroll_child_into_view, self.scrollarea, selected)
+            self.current_application_title.set_label(selected.title)
+            GLib.idle_add(
+                scroll_child_into_view, self.application_strip_scroll, selected
+            )
 
 
-class IconStreamApp(Gtk.Application):
+class NiriswicherApp(Gtk.Application):
     def __init__(self):
         super().__init__()
         self.windows = {}
@@ -329,7 +332,7 @@ class IconStreamApp(Gtk.Application):
         self.lock = threading.Lock()
 
     def do_activate(self):
-        self.window = IconStripWindow(self)
+        self.window = ApplicationSwitcherWindow(self)
         LayerShell.init_for_window(self.window)
         LayerShell.set_namespace(self.window, "niriswitcher")
         LayerShell.set_layer(self.window, LayerShell.Layer.TOP)
@@ -338,7 +341,7 @@ class IconStreamApp(Gtk.Application):
         threading.Thread(target=self.track_niri_windows, daemon=True).start()
 
     def activate(self):
-        self.window.clear_app_icon()
+        self.window.clear_applications()
         with self.lock:
             mru_windows = sorted(
                 filter(
@@ -349,16 +352,15 @@ class IconStreamApp(Gtk.Application):
                 reverse=True,
             )
             for window in mru_windows:
-                self.window.add_app_icon(window)
+                self.window.add_application(window)
 
         if len(mru_windows) > 1:
             self.window.queue_resize()
-            self.window.select(1)
+            self.window.select_application(1)
             self.window.resize_to_fit()
             self.window.present()
 
     def track_niri_windows(self):
-        # Runs 'niri msg' and reads its output lines.
         process = subprocess.Popen(
             ["niri", "msg", "-j", "event-stream"],
             stdout=subprocess.PIPE,
@@ -416,7 +418,7 @@ class IconStreamApp(Gtk.Application):
 
 def main():
     load_and_initialize_styles()
-    app = IconStreamApp()
+    app = NiriswicherApp()
 
     def on_show_switcher(app):
         app.activate()

@@ -24,31 +24,30 @@ from gi.repository import Gtk4LayerShell as LayerShell
 
 
 def load_and_initialize_styles(filename="style.css"):
-    # Load default CSS from package resources
-    provider = Gtk.CssProvider()
     with (
         importlib.resources.files("niriswitcher.resources")
         .joinpath(filename)
         .open("rb") as f
     ):
+        provider = Gtk.CssProvider()
         css_data = f.read()
         provider.load_from_data(css_data)
-    Gtk.StyleContext.add_provider_for_display(
-        Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-    )
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
 
     config_home = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
     user_css_path = os.path.join(config_home, "niriswitcher", filename)
     if os.path.isfile(user_css_path):
-        user_provider = Gtk.CssProvider()
         with open(user_css_path, "rb") as f:
+            user_provider = Gtk.CssProvider()
             css_data = f.read()
             user_provider.load_from_data(css_data)
-        Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(),
-            user_provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1,
-        )
+            Gtk.StyleContext.add_provider_for_display(
+                Gdk.Display.get_default(),
+                user_provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1,
+            )
 
 
 def on_key_release(controller, keyval, keycode, state, win):

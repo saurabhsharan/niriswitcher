@@ -267,11 +267,13 @@ class IconStripWindow(Gtk.Window):
             subprocess.call(
                 ["niri", "msg", "action", "close-window", "--id", str(selected.id)]
             )
+            selected_index = self.selected_icon
             self.icon_hbox.remove(selected)
             self.icons.remove(selected)
             if len(self.icons) > 0:
                 self.resize_to_fit()
-                self.select_prev()
+                self.selected_icon = None
+                self.select(max(0, selected_index - 1))
             else:
                 self.selected_icon = None
                 self.hide()

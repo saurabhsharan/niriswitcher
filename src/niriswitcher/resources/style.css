@@ -1,7 +1,7 @@
 .niriswitcher-window {
     background-color: rgba(76,76,76,.95);
     border-radius: 22px;
-    padding: 20px;
+    padding: 10px 20px 10px;
 }
 
 scrollbar, scrollbar * {
@@ -37,6 +37,11 @@ scrollbar slider {
 
 .application-icon {
     padding: 10px;
+    -gtk-icon-shadow: 0 1px 1px hsl(0deg 0% 0% / 0.075),
+        0 2px 2px hsl(0deg 0% 0% / 0.075),
+        0 4px 4px hsl(0deg 0% 0% / 0.075),
+        0 8px 8px hsl(0deg 0% 0% / 0.075),
+        0 16px 16px hsl(0deg 0% 0% / 0.075);
 }
 
 .application-name {

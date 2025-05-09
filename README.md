@@ -2,7 +2,7 @@
 
 An application switcher for niri.
 
-https://github.com/user-attachments/assets/9d2b71a1-16d1-4a3f-81d5-0adee2ed1375
+https://github.com/user-attachments/assets/775fd88c-9991-4692-a880-30d083304be9
 
 ## Installation
 

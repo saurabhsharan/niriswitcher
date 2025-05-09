@@ -89,6 +89,16 @@ def load_and_initialize_styles(filename="style.css"):
             )
 
 
+def on_application_pressed(gesture, n_press, x, y, application, win):
+    hide = n_press > 1
+    button = gesture.get_current_button()
+    if button == 1:
+        win.focus_window(application, hide=hide)
+        win.select_application(application)
+    elif button == 3:
+        win.close_window(application)
+
+
 def on_key_release(controller, keyval, keycode, state, win):
     """
     Handles the key release event for the given controller.
@@ -97,7 +107,7 @@ def on_key_release(controller, keyval, keycode, state, win):
     hides and activates the currently selected window.
     """
     if keyval in (Gdk.KEY_Alt_L, Gdk.KEY_Alt_R):
-        win.activate_selected_window()
+        win.focus_selected_window()
         return True
     return False
 
@@ -130,17 +140,16 @@ def on_press_key(controller, keyval, keycode, state, win):
         win.close_selected_window()
 
 
-class ApplicationArea(Gtk.Box):
-    def __init__(self, id, icon, name, title):
+class Application(Gtk.Box):
+    def __init__(self, window: Window, *, size):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
-        self.id = id
-        self.title = title
-        self.name = name
+        self.window = window
+        icon = new_app_icon_or_default(window.app_info, size)
         name = Gtk.Label()
         name.set_ellipsize(Pango.EllipsizeMode.END)
         name.set_max_width_chars(1)
         name.set_hexpand(True)
-        name.set_label(self.name)
+        name.set_label(self.window.name)
 
         self.append(icon)
         self.append(name)
@@ -275,7 +284,7 @@ class ApplicationSwitcherWindow(Gtk.Window):
             Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER
         )
         self.application_strip_scroll.set_halign(Gtk.Align.CENTER)
-        self.application_strip_scroll.set_child(self.application_strip)
+        self.application_strip_scroll.set_child(stack)
         self.application_strip_scroll.add_css_class("application-strip-scroll")
 
         self.switcher_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -291,14 +300,12 @@ class ApplicationSwitcherWindow(Gtk.Window):
         self.set_resizable(False)
         self.add_css_class("niriswitcher-window")
         self.set_default_size(-1, 100)
-        self.applications = []
-        self.current_application_index = None
+        self.current_application = None
 
-        self.key_controller = Gtk.EventControllerKey.new()
-        self.key_controller.connect("key-released", on_key_release, self)
-        self.key_controller.connect("key-pressed", on_press_key, self)
-
-        self.add_controller(self.key_controller)
+        key_controller = Gtk.EventControllerKey.new()
+        key_controller.connect("key-released", on_key_release, self)
+        key_controller.connect("key-pressed", on_press_key, self)
+        self.add_controller(key_controller)
         self.connect("map", self.on_map)
 
     def on_map(self, window):
@@ -306,57 +313,61 @@ class ApplicationSwitcherWindow(Gtk.Window):
         surface.inhibit_system_shortcuts(None)
 
     def activate_and_show(self):
-        self.clear_applications()
+        self._clear_applications()
         mru_windows = self.window_manager.get_windows(
             active_workspace=self.config.general.active_workspace
         )
 
         if len(mru_windows) > 1:
             for window in mru_windows:
-                self.add_application(window)
+                application = Application(window, size=self.config.general.icon_size)
+                gesture = Gtk.GestureClick.new()
+                gesture.set_button(0)
+                gesture.connect("pressed", on_application_pressed, application, self)
+                application.add_controller(gesture)
+
+                self.application_strip.append(application)
             self.queue_resize()
-            self.select_application(1)
+            second = self.application_strip.get_first_child().get_next_sibling()
+            self.select_application(second)
             self.resize_to_fit()
             self.present()
 
-    def clear_applications(self):
-        for application in self.applications:
+    def _clear_applications(self):
+        application = self.application_strip.get_first_child()
+        while application is not None:
+            next = application.get_next_sibling()
             self.application_strip.remove(application)
-        self.applications.clear()
-        self.current_application_index = None
+            application = next
 
-    def add_application(self, window: Window):
-        if app_info := window.app_info:
-            icon = new_app_icon_or_default(app_info, self.config.general.icon_size)
-            box = ApplicationArea(window.id, icon, app_info.get_name(), window.title)
+        self.current_application = None
 
-            self.applications.append(box)
-            self.application_strip.append(box)
+    def focus_selected_window(self, hide=True):
+        self.focus_window(self.current_application, hide=hide)
 
-    def activate_selected_window(self, hide=True):
-        if self.current_application_index is not None:
-            selected = self.get_selected_application()
-            self.current_application_index = None
+    def focus_window(self, application, hide=True):
+        if application is not None:
             if hide:
                 self.hide()
 
-            self.window_manager.focus_window(selected.id)
+            self.window_manager.focus_window(application.window.id)
 
     def close_selected_window(self):
-        if self.current_application_index is not None:
-            selected = self.get_selected_application()
-            current_application_index = self.current_application_index
-            self.application_strip.remove(selected)
-            self.applications.remove(selected)
-            if len(self.applications) > 0:
-                self.resize_to_fit()
-                self.current_application_index = None
-                self.select_application(max(0, current_application_index - 1))
-            else:
-                self.current_application_index = None
-                self.hide()
+        self.close_window(self.current_application)
 
-            self.window_manager.close_window(selected.id)
+    def close_window(self, application):
+        self.current_application = application.get_prev_sibling()
+        if self.current_application is None:
+            self.current_application = application.get_next_sibling()
+
+        self.application_strip.remove(application)
+        if self.current_application is not None:
+            self.resize_to_fit()
+            self.select_application(self.current_application)
+        else:
+            self.hide()
+
+        self.window_manager.close_window(application.window.id)
 
     def resize_to_fit(self):
         measure = self.application_strip.measure(Gtk.Orientation.HORIZONTAL, -1)
@@ -364,56 +375,30 @@ class ApplicationSwitcherWindow(Gtk.Window):
         self.switcher_view.set_size_request(size, -1)
         self.application_strip_scroll.set_size_request(size, -1)
 
-    def get_selected_application(self):
-        if (
-            self.current_application_index is not None
-            and self.current_application_index < len(self.applications)
-        ):
-            return self.applications[self.current_application_index]
+    def select_application(self, application):
+        if self.current_application is not None:
+            self.current_application.deselect()
 
-    def select_application(self, index):
-        if self.current_application_index is not None:
-            self.applications[self.current_application_index].deselect()
-
-        self.current_application_index = index
-        selected = self.applications[self.current_application_index]
-        selected.select()
-        self.current_application_title.set_label(selected.title)
+        self.current_application = application
+        self.current_application.select()
+        self.current_application_title.set_label(self.current_application.window.title)
         animate_scroll_application_into_view(
             self.application_strip_scroll,
-            selected,
+            self.current_application,
             duration=self.config.general.scroll_animaton_duration,
         )
 
     def select_next_application(self):
-        if self.current_application_index is not None:
-            self.applications[self.current_application_index].deselect()
-            self.current_application_index = (self.current_application_index + 1) % len(
-                self.applications
-            )
-            selected = self.applications[self.current_application_index]
-            selected.select()
-            self.current_application_title.set_label(selected.title)
-            animate_scroll_application_into_view(
-                self.application_strip_scroll,
-                selected,
-                duration=self.config.general.scroll_animaton_duration,
-            )
+        next = self.current_application.get_next_sibling()
+        if next is None:
+            next = self.application_strip.get_first_child()
+        self.select_application(next)
 
     def select_prev_application(self):
-        if self.current_application_index is not None:
-            self.applications[self.current_application_index].deselect()
-            self.current_application_index = (self.current_application_index - 1) % len(
-                self.applications
-            )
-            selected = self.applications[self.current_application_index]
-            selected.select()
-            self.current_application_title.set_label(selected.title)
-            animate_scroll_application_into_view(
-                self.application_strip_scroll,
-                selected,
-                duration=self.config.general.scroll_animaton_duration,
-            )
+        prev = self.current_application.get_prev_sibling()
+        if prev is None:
+            prev = self.application_strip.get_last_child()
+        self.select_application(prev)
 
 
 class NiriswicherApp(Gtk.Application):

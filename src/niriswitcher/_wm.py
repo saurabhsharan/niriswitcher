@@ -19,6 +19,10 @@ class Window:
     title: str
     last_focus_time: int
 
+    @property
+    def name(self):
+        return self.app_info.get_name() if self.app_info is not None else self.app_id
+
 
 def new_window_from_niri(window, last_focus_time=None) -> Window:
     return Window(

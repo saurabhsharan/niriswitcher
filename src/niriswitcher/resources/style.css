@@ -32,7 +32,7 @@ scrollbar slider {
 .application-strip-scroll {
 }
 
-.application-area {
+.application {
   background-color: transparent;
 }
 
@@ -53,11 +53,11 @@ scrollbar slider {
 }
 
 
-.application-area.selected .application-name {
+.application.selected .application-name {
   opacity: 1;
 }
 
-.application-area.selected .application-icon {
+.application.selected .application-icon {
     transition: background-color 0.1s ease-in;
     -gtk-icon-filter: brightness(110%);
     border-radius: 22px;

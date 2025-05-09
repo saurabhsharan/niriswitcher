@@ -172,8 +172,8 @@ class Application(Gtk.Box):
         self.append(icon)
         self.append(name)
 
+        self.add_css_class("application")
         name.add_css_class("application-name")
-        self.add_css_class("application-area")
         icon.add_css_class("application-icon")
 
     def select(self):

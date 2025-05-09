@@ -284,7 +284,7 @@ class ApplicationSwitcherWindow(Gtk.Window):
             Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER
         )
         self.application_strip_scroll.set_halign(Gtk.Align.CENTER)
-        self.application_strip_scroll.set_child(stack)
+        self.application_strip_scroll.set_child(self.application_strip)
         self.application_strip_scroll.add_css_class("application-strip-scroll")
 
         self.switcher_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)

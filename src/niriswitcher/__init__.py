@@ -26,6 +26,7 @@ from gi.repository import Gtk4LayerShell as LayerShell
 @dataclass
 class NiriswitcherConfigGeneral:
     icon_size: int = 128
+    scroll_animaton_duration: int = 500
     max_width: int = 800
     active_workspace: bool = True
 
@@ -48,10 +49,12 @@ def load_configuration(config_path=None):
         icon_size = section.getint("icon_size", fallback=128)
         max_width = section.getint("max_width", fallback=800)
         active_workspace = section.getboolean("active_workspace", fallback=True)
+        scroll_animation_duration = section.getint("scroll_animation_duration", 500)
         general = NiriswitcherConfigGeneral(
             icon_size=icon_size,
             max_width=max_width,
             active_workspace=active_workspace,
+            scroll_animaton_duration=scroll_animation_duration,
         )
     else:
         general = NiriswitcherConfigGeneral()
@@ -197,45 +200,54 @@ def new_app_icon_or_default(app_info: Gio.DesktopAppInfo, size):
     return image
 
 
-def scroll_child_into_view(scrolled_window, child):
-    hadj = scrolled_window.get_hadjustment()
-    child_x = child.get_allocation().x
-    child_width = child.get_allocation().width
-    visible_start = hadj.get_value()
-    visible_end = visible_start + hadj.get_page_size()
-    if child_x >= visible_start and (child_x + child_width) <= visible_end:
-        return
+def animate_scroll_application_into_view(
+    scrolled_application_strip, selected_application, duration=200
+):
+    def f(scrolled_application_strip, selected_application):
+        hadj = scrolled_application_strip.get_hadjustment()
+        child_x = selected_application.get_allocation().x
+        child_width = selected_application.get_allocation().width
+        visible_start = hadj.get_value()
+        visible_end = visible_start + hadj.get_page_size()
+        if child_x >= visible_start and (child_x + child_width) <= visible_end:
+            return
 
-    child_center = child_x + child_width / 2
-    new_value = child_center - hadj.get_page_size() / 2
+        child_center = child_x + child_width / 2
+        new_value = child_center - hadj.get_page_size() / 2
 
-    new_value = max(
-        hadj.get_lower(), min(new_value, hadj.get_upper() - hadj.get_page_size())
-    )
-    duration = 200
-    start_value = hadj.get_value()
-    delta = new_value - start_value
-    start_time = time.monotonic()
+        new_value = max(
+            hadj.get_lower(), min(new_value, hadj.get_upper() - hadj.get_page_size())
+        )
 
-    def ease_in_out_cubic(t):
-        if t < 0.5:
-            return 4 * t * t * t
-        else:
-            return 1 - pow(-2 * t + 2, 3) / 2
-
-    def animate_scroll():
-        elapsed = (time.monotonic() - start_time) * 1000
-        t = min(elapsed / duration, 1.0)
-        eased_t = ease_in_out_cubic(t)
-        current_value = start_value + delta * eased_t
-        hadj.set_value(current_value)
-        if t < 1.0:
-            return True
-        else:
+        if duration == 0:
             hadj.set_value(new_value)
-            return False
+            return
 
-    GLib.timeout_add(16, animate_scroll)
+        start_value = hadj.get_value()
+        delta = new_value - start_value
+        start_time = time.monotonic()
+
+        def ease_in_out_cubic(t):
+            if t < 0.5:
+                return 4 * t * t * t
+            else:
+                return 1 - pow(-2 * t + 2, 3) / 2
+
+        def animate_scroll():
+            elapsed = (time.monotonic() - start_time) * 1000
+            t = min(elapsed / duration, 1.0)
+            eased_t = ease_in_out_cubic(t)
+            current_value = start_value + delta * eased_t
+            hadj.set_value(current_value)
+            if t < 1.0:
+                return True
+            else:
+                hadj.set_value(new_value)
+                return False
+
+        GLib.timeout_add(16, animate_scroll)
+
+    GLib.idle_add(f, scrolled_application_strip, selected_application)
 
 
 class ApplicationSwitcherWindow(Gtk.Window):
@@ -367,7 +379,11 @@ class ApplicationSwitcherWindow(Gtk.Window):
         selected = self.applications[self.current_application_index]
         selected.select()
         self.current_application_title.set_label(selected.title)
-        GLib.idle_add(scroll_child_into_view, self.application_strip_scroll, selected)
+        animate_scroll_application_into_view(
+            self.application_strip_scroll,
+            selected,
+            duration=self.config.general.scroll_animaton_duration,
+        )
 
     def select_next_application(self):
         if self.current_application_index is not None:
@@ -378,8 +394,10 @@ class ApplicationSwitcherWindow(Gtk.Window):
             selected = self.applications[self.current_application_index]
             selected.select()
             self.current_application_title.set_label(selected.title)
-            GLib.idle_add(
-                scroll_child_into_view, self.application_strip_scroll, selected
+            animate_scroll_application_into_view(
+                self.application_strip_scroll,
+                selected,
+                duration=self.config.general.scroll_animaton_duration,
             )
 
     def select_prev_application(self):
@@ -391,8 +409,10 @@ class ApplicationSwitcherWindow(Gtk.Window):
             selected = self.applications[self.current_application_index]
             selected.select()
             self.current_application_title.set_label(selected.title)
-            GLib.idle_add(
-                scroll_child_into_view, self.application_strip_scroll, selected
+            animate_scroll_application_into_view(
+                self.application_strip_scroll,
+                selected,
+                duration=self.config.general.scroll_animaton_duration,
             )
 
 

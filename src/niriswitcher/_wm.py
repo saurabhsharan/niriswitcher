@@ -43,7 +43,8 @@ def get_app_info(app_id):
     except Exception:
         desktop_files = Gio.AppInfo.get_all()
         for desktop_file in desktop_files:
-            if app_id.lower() == desktop_file.get_string("StartupWMClass").lower():
+            startup_wm_class = desktop_file.get_string("StartupWMClass")
+            if startup_wm_class and app_id.lower() == startup_wm_class.lower():
                 return desktop_file
         return None
 

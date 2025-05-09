@@ -1,6 +1,7 @@
 .niriswitcher-window {
-    background-color: rgba(76,76,76,.95);
+    background-color: rgba(44,44,44,.95);
     border-radius: 22px;
+    border: 1px solid rgba(76,76,76,0.95);
     padding: 10px 20px 10px;
 }
 
@@ -36,7 +37,8 @@ scrollbar slider {
 }
 
 .application-icon {
-    padding: 10px;
+    transition: -gtk-icon-filter 0.2s ease-in-out;
+    padding: 10px 15px 10px;
     -gtk-icon-shadow: 0 1px 1px hsl(0deg 0% 0% / 0.075),
         0 2px 2px hsl(0deg 0% 0% / 0.075),
         0 4px 4px hsl(0deg 0% 0% / 0.075),
@@ -56,8 +58,10 @@ scrollbar slider {
 }
 
 .application-area.selected .application-icon {
-    padding: 9px;
-    border: 1px solid rgba(44,44,44,0.95);
-    border-radius: 8px;
-    background-color: rgba(59,59,59,0.95);
+    transition: background-color 0.1s ease-in;
+    -gtk-icon-filter: brightness(110%);
+    /* padding: 10px 15px 4px; */
+    /* border: 1px solid rgba(44,44,44,0.95); */
+    border-radius: 22px;
+    background-color: rgba(99,99,99,0.95);
 }

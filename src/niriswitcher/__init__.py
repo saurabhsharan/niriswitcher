@@ -4,15 +4,16 @@ CDLL("libgtk4-layer-shell.so")
 
 import importlib
 import importlib.resources
-import operator
 import time
-import json
-import subprocess
 import os
-import threading
 import signal
+import configparser
 
-import socket
+from dataclasses import dataclass
+
+from ._wm import NiriWindowManager, Window
+
+
 import gi
 
 gi.require_version("Gtk4LayerShell", "1.0")
@@ -20,6 +21,42 @@ gi.require_version("Gtk", "4.0")
 
 from gi.repository import Gtk, Gio, GLib, Gdk, Pango
 from gi.repository import Gtk4LayerShell as LayerShell
+
+
+@dataclass
+class NiriswitcherConfigGeneral:
+    icon_size: int = 128
+    max_width: int = 800
+    active_workspace: bool = True
+
+
+@dataclass
+class NiriswitcherConfig:
+    general: NiriswitcherConfigGeneral
+
+
+def load_configuration(config_path=None):
+    config_home = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+    config_dir = os.path.join(config_home, "niriswitcher")
+    if config_path is None:
+        config_path = os.path.join(config_dir, "config.ini")
+    config = configparser.ConfigParser()
+    config.read(config_path)
+
+    if config.has_section("general"):
+        section = config["general"]
+        icon_size = section.getint("icon_size", fallback=128)
+        max_width = section.getint("max_width", fallback=800)
+        active_workspace = section.getboolean("active_workspace", fallback=True)
+        general = NiriswitcherConfigGeneral(
+            icon_size=icon_size,
+            max_width=max_width,
+            active_workspace=active_workspace,
+        )
+    else:
+        general = NiriswitcherConfigGeneral()
+
+    return NiriswitcherConfig(general=general)
 
 
 def load_and_initialize_styles(filename="style.css"):
@@ -116,17 +153,6 @@ class ApplicationArea(Gtk.Box):
         self.remove_css_class("selected")
 
 
-def get_app_info(app_id):
-    try:
-        return Gio.DesktopAppInfo.new(app_id + ".desktop")
-    except Exception:
-        desktop_files = Gio.AppInfo.get_all()
-        for desktop_file in desktop_files:
-            if app_id.lower() == desktop_file.get_string("StartupWMClass").lower():
-                return desktop_file
-        return None
-
-
 def new_app_icon_or_default(app_info: Gio.DesktopAppInfo, size):
     if app_info:
         icon = app_info.get_icon()
@@ -213,13 +239,10 @@ def scroll_child_into_view(scrolled_window, child):
 
 
 class ApplicationSwitcherWindow(Gtk.Window):
-    def __init__(self, app):
+    def __init__(self, app, config, window_manager):
         super().__init__(application=app, title="niriswitcher")
-        self.key_controller = Gtk.EventControllerKey.new()
-        self.add_controller(self.key_controller)
-        self.add_css_class("niriswitcher-window")
-
-        self.set_default_size(-1, 100)
+        self.config = config
+        self.window_manager = window_manager
 
         self.application_strip = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=12
@@ -254,17 +277,35 @@ class ApplicationSwitcherWindow(Gtk.Window):
         self.set_decorated(False)
         self.set_modal(True)
         self.set_resizable(False)
-
+        self.add_css_class("niriswitcher-window")
+        self.set_default_size(-1, 100)
         self.applications = []
         self.current_application_index = None
 
+        self.key_controller = Gtk.EventControllerKey.new()
         self.key_controller.connect("key-released", on_key_release, self)
         self.key_controller.connect("key-pressed", on_press_key, self)
+
+        self.add_controller(self.key_controller)
         self.connect("map", self.on_map)
 
     def on_map(self, window):
         surface = self.get_surface()
         surface.inhibit_system_shortcuts(None)
+
+    def activate_and_show(self):
+        self.clear_applications()
+        mru_windows = self.window_manager.get_windows(
+            active_workspace=self.config.general.active_workspace
+        )
+
+        if len(mru_windows) > 1:
+            for window in mru_windows:
+                self.add_application(window)
+            self.queue_resize()
+            self.select_application(1)
+            self.resize_to_fit()
+            self.present()
 
     def clear_applications(self):
         for application in self.applications:
@@ -272,12 +313,10 @@ class ApplicationSwitcherWindow(Gtk.Window):
         self.applications.clear()
         self.current_application_index = None
 
-    def add_application(self, window):
-        if app_info := window.get("app_info"):
-            icon = new_app_icon_or_default(app_info, 128)
-            box = ApplicationArea(
-                window["id"], icon, app_info.get_name(), window["title"]
-            )
+    def add_application(self, window: Window):
+        if app_info := window.app_info:
+            icon = new_app_icon_or_default(app_info, self.config.general.icon_size)
+            box = ApplicationArea(window.id, icon, app_info.get_name(), window.title)
 
             self.applications.append(box)
             self.application_strip.append(box)
@@ -289,7 +328,7 @@ class ApplicationSwitcherWindow(Gtk.Window):
             if hide:
                 self.hide()
 
-            NiriswicherApp.niri_window_manager.focus_window(selected.id)
+            self.window_manager.focus_window(selected.id)
 
     def close_selected_window(self):
         if self.current_application_index is not None:
@@ -305,11 +344,11 @@ class ApplicationSwitcherWindow(Gtk.Window):
                 self.current_application_index = None
                 self.hide()
 
-            NiriswicherApp.niri_window_manager.close_window(selected.id)
+            self.window_manager.close_window(selected.id)
 
     def resize_to_fit(self):
         measure = self.application_strip.measure(Gtk.Orientation.HORIZONTAL, -1)
-        size = min(800, measure.natural)
+        size = min(self.config.general.max_width, measure.natural)
         self.switcher_view.set_size_request(size, -1)
         self.application_strip_scroll.set_size_request(size, -1)
 
@@ -357,129 +396,19 @@ class ApplicationSwitcherWindow(Gtk.Window):
             )
 
 
-def connect_niri_socket():
-    niri_socket = socket.socket(socket.AF_UNIX)
-    niri_socket.connect(os.environ.get("NIRI_SOCKET"))
-    return niri_socket
-
-
-def niri_request(request):
-    with connect_niri_socket() as niri_socket:
-        with niri_socket.makefile("w") as socket_file:
-            socket_file.write(json.dumps(request))
-            socket_file.write("\n")
-            socket_file.flush()
-
-
-class NiriWindowManager:
-    def __init__(self):
-        self.windows = {}
-        self.workspaces = {}
-        self.active_workspace = None
-        self.lock = threading.Lock()
-        threading.Thread(target=self.start_track_niri_windows, daemon=True).start()
-
-    def focus_window(self, id):
-        niri_request({"Action": {"FocusWindow": {"id": int(id)}}})
-
-    def close_window(self, id):
-        niri_request({"Action": {"CloseWindow": {"id": int(id)}}})
-
-    def start_track_niri_windows(self):
-        with connect_niri_socket() as niri_socket:
-            with niri_socket.makefile("rw") as socket_file:
-                socket_file.write('"EventStream"\n')
-                socket_file.flush()
-                niri_socket.shutdown(socket.SHUT_WR)
-                self.track_niri_windows(socket_file)
-
-    def track_niri_windows(self, socket_file):
-        for line in socket_file:
-            obj = json.loads(line)
-            if workspace_changed := obj.get("WorkspacesChanged"):
-                with self.lock:
-                    for workspace in workspace_changed["workspaces"]:
-                        if workspace["is_focused"]:
-                            self.active_workspace = workspace["id"]
-
-                        self.workspaces[workspace["id"]] = workspace
-            elif windows_changed := obj.get("WindowsChanged"):
-                with self.lock:
-                    now = time.time()
-                    for window in windows_changed["windows"]:
-                        active_time = now
-                        if window["is_focused"]:
-                            active_time = active_time + 1
-
-                        window["active_time"] = active_time
-                        window["app_info"] = get_app_info(window["app_id"])
-                        self.windows[window["id"]] = window
-            elif window_closed := obj.get("WindowClosed"):
-                window_id = window_closed["id"]
-                with self.lock:
-                    if window_id in self.windows:
-                        del self.windows[window_id]
-            elif opened_or_changed := obj.get("WindowOpenedOrChanged"):
-                with self.lock:
-                    window = opened_or_changed["window"]
-                    window_id = window["id"]
-                    window["active_time"] = time.time()
-                    window["app_info"] = get_app_info(window["app_id"])
-                    self.windows[window_id] = window
-            elif workspace_window := obj.get("WorkspaceActiveWindowChanged"):
-                workspace_id = workspace_window["workspace_id"]
-                with self.lock:
-                    if workspace_id:
-                        self.active_workspace = workspace_id
-                    window_id = workspace_window["active_window_id"]
-                    if window_id in self.windows:
-                        self.windows[window_id]["active_time"] = time.time()
-            elif window_focus_changed := obj.get("WindowFocusChanged"):
-                with self.lock:
-                    window_id = window_focus_changed["id"]
-                    if window_id in self.windows:
-                        self.windows[window_id]["active_time"] = time.time()
-            elif workspace_activated := obj.get("WorkspaceActivated"):
-                with self.lock:
-                    self.active_workspace = workspace_activated["id"]
-
-    def get_windows(self, active_workspace=True):
-        with self.lock:
-            windows = self.windows.values()
-            if active_workspace:
-                windows = filter(
-                    lambda w: w["workspace_id"] == self.active_workspace, windows
-                )
-
-            return sorted(windows, key=operator.itemgetter("active_time"), reverse=True)
-
-
 class NiriswicherApp(Gtk.Application):
-    niri_window_manager = NiriWindowManager()
-
     def __init__(self):
         super().__init__()
-        self.window = None
 
     def do_activate(self):
-        self.window = ApplicationSwitcherWindow(self)
+        config = load_configuration()
+        window_manager = NiriWindowManager()
+        self.window = ApplicationSwitcherWindow(self, config, window_manager)
         LayerShell.init_for_window(self.window)
         LayerShell.set_namespace(self.window, "niriswitcher")
         LayerShell.set_layer(self.window, LayerShell.Layer.TOP)
         LayerShell.auto_exclusive_zone_enable(self.window)
         LayerShell.set_keyboard_mode(self.window, LayerShell.KeyboardMode.EXCLUSIVE)
-
-    def activate(self):
-        self.window.clear_applications()
-        mru_windows = NiriswicherApp.niri_window_manager.get_windows()
-
-        if len(mru_windows) > 1:
-            for window in mru_windows:
-                self.window.add_application(window)
-            self.window.queue_resize()
-            self.window.select_application(1)
-            self.window.resize_to_fit()
-            self.window.present()
 
 
 def main():
@@ -487,7 +416,7 @@ def main():
     app = NiriswicherApp()
 
     def signal_handler(signum, frame):
-        app.activate()
+        app.window.activate_and_show()
 
     signal.signal(signal.SIGUSR1, signal_handler)
     app.register(None)

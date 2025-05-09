@@ -29,6 +29,7 @@ class NiriswitcherConfigGeneral:
     scroll_animaton_duration: int = 500
     max_width: int = 800
     active_workspace: bool = True
+    double_click_to_hide: bool = False
 
 
 @dataclass
@@ -50,11 +51,13 @@ def load_configuration(config_path=None):
         max_width = section.getint("max_width", fallback=800)
         active_workspace = section.getboolean("active_workspace", fallback=True)
         scroll_animation_duration = section.getint("scroll_animation_duration", 500)
+        double_click_to_hide = section.getint("double_click_to_hide", False)
         general = NiriswitcherConfigGeneral(
             icon_size=icon_size,
             max_width=max_width,
             active_workspace=active_workspace,
             scroll_animaton_duration=scroll_animation_duration,
+            double_click_to_hide=double_click_to_hide,
         )
     else:
         general = NiriswitcherConfigGeneral()
@@ -90,7 +93,10 @@ def load_and_initialize_styles(filename="style.css"):
 
 
 def on_application_pressed(gesture, n_press, x, y, application, win):
-    hide = n_press > 1
+    hide = True
+    if win.config.general.double_click_to_hide:
+        hide = n_press > 1
+
     button = gesture.get_current_button()
     if button == 1:
         win.focus_window(application, hide=hide)

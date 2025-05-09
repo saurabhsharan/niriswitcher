@@ -105,6 +105,18 @@ def on_application_pressed(gesture, n_press, x, y, application, win):
         win.close_window(application)
 
 
+def on_application_enter(motion, x, y, application, win):
+    if application is not win.current_application:
+        win.current_application_title.set_label(application.window.title)
+        application.select()
+
+
+def on_application_leave(motion, application, win):
+    if application is not win.current_application:
+        application.deselect()
+        win.current_application_title.set_label(win.current_application.window.title)
+
+
 def on_key_release(controller, keyval, keycode, state, win):
     """
     Handles the key release event for the given controller.
@@ -330,6 +342,10 @@ class ApplicationSwitcherWindow(Gtk.Window):
                 gesture = Gtk.GestureClick.new()
                 gesture.set_button(0)
                 gesture.connect("pressed", on_application_pressed, application, self)
+                motion = Gtk.EventControllerMotion.new()
+                motion.connect("enter", on_application_enter, application, self)
+                motion.connect("leave", on_application_leave, application, self)
+                application.add_controller(motion)
                 application.add_controller(gesture)
 
                 self.application_strip.append(application)

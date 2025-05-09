@@ -57,7 +57,6 @@ scrollbar slider {
   opacity: 1;
 }
 
-.application-icon:hover,
 .application-area.selected .application-icon {
     transition: background-color 0.1s ease-in;
     -gtk-icon-filter: brightness(110%);

@@ -6,10 +6,8 @@ readme = "README.md"
 authors = [
     { name = "Isak Samsten", email = "isak@samsten.se" }
 ]
-requires-python = ">=3.13"
-dependencies = [
-    "pygobject>=3.52.3",
-]
+requires-python = ">=3.10"
+dependencies = []
 
 [project.scripts]
 niriswitcher = "niriswitcher:main"

@@ -1,6 +1,6 @@
 from ctypes import CDLL
 
-CDLL("libgtk4-layer-shell.so")
+CDLL("libgtk4-layer-shell.so.0")
 
 import importlib
 import importlib.resources

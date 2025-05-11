@@ -7,7 +7,7 @@ https://github.com/user-attachments/assets/775fd88c-9991-4692-a880-30d083304be9
 ## Installation
 
 ```bash
-pipx install git+https://github.com/isaksamsten/niriswitcher.git
+pipx install --system-site-packages git+https://github.com/isaksamsten/niriswitcher.git
 ```
 
 ### Requirements
@@ -15,7 +15,6 @@ pipx install git+https://github.com/isaksamsten/niriswitcher.git
 The following system packages:
 
 - `python3-gobject`
-- `python3-devel`
 - `gtk4-layer-shell-devel`
 
 These are the names of the packages on Fedora, but I'm sure they are

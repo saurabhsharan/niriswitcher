@@ -227,54 +227,66 @@ def new_app_icon_or_default(app_info: Gio.DesktopAppInfo, size):
     return image
 
 
-def animate_scroll_application_into_view(
-    scrolled_application_strip, selected_application, duration=200
-):
-    def f(scrolled_application_strip, selected_application):
-        hadj = scrolled_application_strip.get_hadjustment()
-        child_x = selected_application.get_allocation().x
-        child_width = selected_application.get_allocation().width
-        visible_start = hadj.get_value()
-        visible_end = visible_start + hadj.get_page_size()
-        if child_x >= visible_start and (child_x + child_width) <= visible_end:
-            return
+class AnimateScrollApplicationIntoView:
+    def __init__(self):
+        self._timer_id = None
 
-        child_center = child_x + child_width / 2
-        new_value = child_center - hadj.get_page_size() / 2
+    def __call__(self, scroll, application, duration=200):
+        def animate_scroll_to_application(scroll, application):
+            hadj = scroll.get_hadjustment()
+            child_x = application.get_allocation().x
+            child_width = application.get_allocation().width
+            visible_start = hadj.get_value()
+            visible_end = visible_start + hadj.get_page_size()
+            if child_x >= visible_start and (child_x + child_width) <= visible_end:
+                return
 
-        new_value = max(
-            hadj.get_lower(), min(new_value, hadj.get_upper() - hadj.get_page_size())
-        )
+            child_center = child_x + child_width / 2
+            new_value = child_center - hadj.get_page_size() / 2
 
-        if duration == 0:
-            hadj.set_value(new_value)
-            return
+            new_value = max(
+                hadj.get_lower(),
+                min(new_value, hadj.get_upper() - hadj.get_page_size()),
+            )
 
-        start_value = hadj.get_value()
-        delta = new_value - start_value
-        start_time = time.monotonic()
-
-        def ease_in_out_cubic(t):
-            if t < 0.5:
-                return 4 * t * t * t
-            else:
-                return 1 - pow(-2 * t + 2, 3) / 2
-
-        def animate_scroll():
-            elapsed = (time.monotonic() - start_time) * 1000
-            t = min(elapsed / duration, 1.0)
-            eased_t = ease_in_out_cubic(t)
-            current_value = start_value + delta * eased_t
-            hadj.set_value(current_value)
-            if t < 1.0:
-                return True
-            else:
+            if duration == 0:
                 hadj.set_value(new_value)
-                return False
+                self._timer_id = None
+                return
 
-        GLib.timeout_add(16, animate_scroll)
+            start_value = hadj.get_value()
+            delta = new_value - start_value
+            start_time = time.monotonic()
 
-    GLib.idle_add(f, scrolled_application_strip, selected_application)
+            def ease_in_out_cubic(t):
+                if t < 0.5:
+                    return 4 * t * t * t
+                else:
+                    return 1 - pow(-2 * t + 2, 3) / 2
+
+            def animate_scroll():
+                elapsed = (time.monotonic() - start_time) * 1000
+                t = min(elapsed / duration, 1.0)
+                eased_t = ease_in_out_cubic(t)
+                current_value = start_value + delta * eased_t
+                hadj.set_value(current_value)
+                if t < 1.0:
+                    return True
+                else:
+                    self._timer_id = None
+                    hadj.set_value(new_value)
+                    return False
+
+            if self._timer_id is not None:
+                GLib.source_remove(self._timer_id)
+                self._timer_id = None
+
+            self._timer_id = GLib.timeout_add(16, animate_scroll)
+
+        GLib.idle_add(animate_scroll_to_application, scroll, application)
+
+
+animate_scroll_application_into_view = AnimateScrollApplicationIntoView()
 
 
 class ApplicationSwitcherWindow(Gtk.Window):
@@ -363,6 +375,7 @@ class ApplicationSwitcherWindow(Gtk.Window):
             application = next
 
         self.current_application = None
+        self.application_strip_scroll.get_hadjustment().set_value(0)
 
     def focus_selected_window(self, hide=True):
         self.focus_window(self.current_application, hide=hide)

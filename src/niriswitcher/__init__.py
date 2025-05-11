@@ -6,6 +6,7 @@ import importlib
 import importlib.resources
 import time
 import os
+import operator
 import signal
 import configparser
 
@@ -33,8 +34,86 @@ class NiriswitcherConfigGeneral:
 
 
 @dataclass
+class NiriSwitcherConfigKeys:
+    modifier: int = Gdk.KEY_Alt_L
+    next: (int, int | None) = (Gdk.KEY_Tab, None)
+    prev: (int, int | None) = (
+        Gdk.KEY_Tab,
+        Gdk.ModifierType.SHIFT_MASK,
+    )
+    close: (int, int | None) = (Gdk.KEY_q, None)
+    abort: (int, int | None) = (Gdk.KEY_Escape, None)
+
+    @property
+    def modifier_as_mask(self):
+        return get_modifier_as_mask(self.modifier)
+
+
+def get_modifier_as_mask(modifier):
+    if modifier in (Gdk.KEY_Alt_L, Gdk.KEY_Alt_R):
+        return Gdk.ModifierType.ALT_MASK
+    elif modifier in (Gdk.KEY_Super_L, Gdk.KEY_Super_R):
+        return Gdk.ModifierType.SUPER_MASK
+    elif modifier in (Gdk.KEY_Meta_L, Gdk.KEY_Meta_R):
+        return Gdk.ModifierType.META_MASK
+    elif modifier in (Gdk.KEY_Control_L, Gdk.KEY_Control_R):
+        return Gdk.ModifierType.CONTROL_MASK
+    elif modifier in (Gdk.KEY_Shift_L, Gdk.KEY_Shift_R):
+        return Gdk.ModifierType.SHIFT_MASK
+    else:
+        return None
+
+
+def parse_modifier_key(key):
+    if key.lower() == "alt":
+        key = "Alt_L"
+    elif key.lower() in ("super", "mod"):
+        key = "Super_L"
+    elif key.lower() == "shift":
+        key = "Shift_L"
+    elif key.lower() == "control":
+        key = "Control_L"
+
+    modifier = Gdk.keyval_from_name(key)
+    if modifier == Gdk.KEY_VoidSymbol:
+        return None
+
+    if get_modifier_as_mask(modifier) is None:
+        raise ValueError("configuration error: invalid modifier")
+
+    return modifier
+
+
+def parse_accelerator_key(binding, default_modifier):
+    def binding_str_to_accel(binding):
+        parts = binding.split("+")
+        VALID_MODIFIERS = {"shift", "control", "ctrl", "alt", "super", "meta", "hyper"}
+        accel = ""
+        for part in parts[:-1]:
+            normalized = part.strip().lower()
+            if normalized == "mod":
+                normalized = "super"
+            elif normalized == "ctrl":
+                normalized = "control"
+
+            if normalized in VALID_MODIFIERS:
+                accel += f"<{normalized.capitalize()}>"
+            else:
+                raise ValueError(f"configuration error: unknown modifier '{part}'")
+        accel += parts[-1].strip()
+        return accel
+
+    ok, key, mods = Gtk.accelerator_parse(binding_str_to_accel(binding))
+    if ok:
+        return (key, mods | default_modifier if mods != 0 else default_modifier)
+    else:
+        raise ValueError(f"unable to parse keys: {binding}")
+
+
+@dataclass
 class NiriswitcherConfig:
     general: NiriswitcherConfigGeneral
+    keys: NiriSwitcherConfigKeys
 
 
 def load_configuration(config_path=None):
@@ -62,7 +141,25 @@ def load_configuration(config_path=None):
     else:
         general = NiriswitcherConfigGeneral()
 
-    return NiriswitcherConfig(general=general)
+    if config.has_section("keys"):
+        keys = config["keys"]
+        modifier = parse_modifier_key(keys.get("modifier", fallback="Alt_L"))
+        modifier_mask = get_modifier_as_mask(modifier)
+        keys = NiriSwitcherConfigKeys(
+            modifier=modifier,
+            next=parse_accelerator_key(keys.get("next", fallback="Tab"), modifier_mask),
+            prev=parse_accelerator_key(
+                keys.get("prev", fallback="Shift+Tab"), modifier_mask
+            ),
+            close=parse_accelerator_key(keys.get("close", fallback="q"), modifier_mask),
+            abort=parse_accelerator_key(
+                keys.get("abort", fallback="Escape"), modifier_mask
+            ),
+        )
+    else:
+        keys = NiriSwitcherConfigKeys()
+
+    return NiriswitcherConfig(general=general, keys=keys)
 
 
 def load_and_initialize_styles(filename="style.css"):
@@ -124,8 +221,8 @@ def on_key_release(controller, keyval, keycode, state, win):
     If the released key is either the left or right Alt key, this function
     hides and activates the currently selected window.
     """
-    if keyval in (Gdk.KEY_Alt_L, Gdk.KEY_Alt_R):
-        win.focus_selected_window()
+    if keyval == win.config.keys.modifier:
+        win.focus_selected_window(hide=True)
         return True
     return False
 
@@ -138,24 +235,19 @@ def on_press_key(controller, keyval, keycode, state, win):
     trigger window navigation actions or hide the window.
     """
 
-    # helper to detect tab while holding shift
-    def is_tab_combo(keyval):
-        return keyval in (Gdk.KEY_Tab, Gdk.KEY_ISO_Left_Tab)
+    if keyval == Gdk.KEY_ISO_Left_Tab:
+        keyval = Gdk.KEY_Tab
 
-    if (
-        is_tab_combo(keyval)
-        and (state & Gdk.ModifierType.ALT_MASK)  # Alt is held
-        and (state & Gdk.ModifierType.SHIFT_MASK)
-    ):
-        win.select_prev_application()
-    elif (
-        is_tab_combo(keyval) and (state & Gdk.ModifierType.ALT_MASK)  # Alt is held
-    ):
-        win.select_next_application()
-    elif keyval == Gdk.KEY_Escape:
-        win.hide()
-    elif keyval == Gdk.KEY_q:
-        win.close_selected_window()
+    keyval_name = Gdk.keyval_name(keyval)
+    if keyval_name and len(keyval_name) == 1 and keyval_name.isalpha():
+        keyval = Gdk.keyval_from_name(keyval_name.lower())
+
+    actions = win.get_actions()
+
+    for action in actions:
+        if action.matches(keyval, state):
+            action()
+            break
 
 
 class Application(Gtk.Box):
@@ -289,6 +381,22 @@ class AnimateScrollApplicationIntoView:
 animate_scroll_application_into_view = AnimateScrollApplicationIntoView()
 
 
+class BindingAction:
+    def __init__(self, mapping, action):
+        self.keyval = mapping[0]
+        self.state = mapping[1]
+        self.action = action
+        self.mod_count = bin(int(self.state)).count("1")
+
+    def matches(self, keyval, state):
+        if keyval == self.keyval and state == self.state:
+            return True
+        return False
+
+    def __call__(self):
+        self.action()
+
+
 class ApplicationSwitcherWindow(Gtk.Window):
     def __init__(self, app, config, window_manager):
         super().__init__(application=app, title="niriswitcher")
@@ -338,9 +446,23 @@ class ApplicationSwitcherWindow(Gtk.Window):
         self.add_controller(key_controller)
         self.connect("map", self.on_map)
 
+        self._actions = None
+
     def on_map(self, window):
         surface = self.get_surface()
         surface.inhibit_system_shortcuts(None)
+
+    def get_actions(self):
+        if self._actions is None:
+            self._actions = [
+                BindingAction(self.config.keys.next, self.select_next_application),
+                BindingAction(self.config.keys.prev, self.select_prev_application),
+                BindingAction(self.config.keys.abort, self.hide),
+                BindingAction(self.config.keys.close, self.close_selected_window),
+            ]
+            self._actions.sort(key=operator.attrgetter("mod_count"), reverse=True)
+
+        return self._actions
 
     def activate_and_show(self):
         self._clear_applications()

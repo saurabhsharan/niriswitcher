@@ -67,7 +67,29 @@ scroll_animaton_duration = 500
 max_width = 800
 active_workspace = true
 double_click_to_hide = false
+
+[keys]
+modifier=Alt_L
+next=Tab
+prev=Shift+Tab
+close=q
+abort=Escape
 ```
+
+The `modifier` key keeps `niriswitcher` active (once released, `niriswitcher`
+is closed and the selected application activated). It's implicitly part of the
+other key mappings, so in the default configuration `Alt+Tab` moves to the next
+application, `Alt+Shift+Tab` to the previous, and so forth. To change the
+modifier key, select another key among: `Alt`, `Super`, `Shift`, or `Control`.
+
+The other bindings are expressed as bindings, e.g.,
+`Shift+Tab` or `Control+j`. Note that `modifier` is implicit in all
+bindings.
+
+> [WARNING!]
+> When using `Mod` or `Super` as the `modifier`, `niri` seems to inhibit
+> `Super+Escape` reaching `niriswitcher`. Please select another binding for
+> `abort`.
 
 We can also change/improve the style of the switcher using a `style.css` file
 in the same configuration directory.

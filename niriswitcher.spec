@@ -1,11 +1,13 @@
+%define version 0.1.0
+
 Name:           niriswitcher
-Version:        0.1.0
+Version:        %{version}
 Release:        1%{?dist}
 Summary:        Add your description here
 
 License:        MIT
 URL:            https://github.com/isaksamsten/niriswitcher
-Source0:        %{name}-%{version}.tar.gz
+Source0:        %{url}/archive/${version}/%{name}-%{version}.tar.gz
 
 BuildArch:      noarch
 

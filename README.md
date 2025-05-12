@@ -9,24 +9,34 @@ https://github.com/user-attachments/assets/775fd88c-9991-4692-a880-30d083304be9
 ```bash
 pipx install --system-site-packages git+https://github.com/isaksamsten/niriswitcher.git
 ```
+> [!NOTE]
+> You must use `--system-site-packages` to avoid having to build `pygobjects` from source.
+> You also need to install the following system packages:
+> - `python3-gobject`
+> - `gtk4-layer-shell`
+>
+> These are the names of the packages on Fedora, but I'm sure they are
+> distributed for other distributions.
 
-### Requirements
+For users of Fedora, I maintain a COPR built for every release.
 
-The following system packages:
+[![Copr build status](https://copr.fedorainfracloud.org/coprs/isaksamsten/niriswitcher/package/niriswitcher/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/isaksamsten/niriswitcher/package/niriswitcher/) 
 
-- `python3-gobject`
-- `gtk4-layer-shell-devel`
-
-These are the names of the packages on Fedora, but I'm sure they are
-distributed for other distributions.
+```bash
+dnf copr enable isaksamsten/niriswitcher
+dnf install niriswitcher
+```
 
 ### Configuration
 
 First we need to execute the `niriswitcher` application. The program is deamonized and waits for `USR1` signal to be shown. In the niri `config.kdl`-file we first start `niriswitcher` at startup:
 
 ```kdl
-spawn-at-startup "~/.local/bin/niriswitcher"
+spawn-at-startup "niriswitcher"
 ```
+
+> [!NOTE]
+> Replace `niriswitcher` with `~/.local/bin/niriswitcher` if you installed using `pipx` and the binary is not on `$PATH`
 
 Next, we add keybindings to send the `USR1` signal to `niriswitcher` on `Alt+Tab` and `Alt+Shift+Tab`.
 
@@ -37,13 +47,20 @@ bind {
 }
 ```
 
+> [!NOTE]
+> Remember to synchronize the keybinding set in Niri, with the one set for `niriswitcher`. For example, if you use `Mod+Tab` to trigger `niriswitcher` ensure that `modifier=Mod` in `config.ini` (see below).
+
 #### Keybindings
+
+By default, `niriswitcher` uses the following keybindings:
 
 - `Alt+Tab` select next application
 - `Alt+Shift+Tab` select previous application
 - `Alt+Esc` close `niriswitcher` and do not focus
 - `Alt+q` to close the selected application
 - Release `Alt` to focus to currently selected application and close `niriswitcher`
+
+The default mappings and modifier key can be configured in the `config.ini` file.
 
 #### Options
 
@@ -85,11 +102,12 @@ The other bindings are expressed as bindings, e.g.,
 `Shift+Tab` or `Control+j`. Note that `modifier` is implicit in all
 bindings.
 
-> [WARNING!]
+> [!WARNING]
 > When using `Mod` or `Super` as the `modifier`, `niri` seems to inhibit
 > `Super+Escape` reaching `niriswitcher`. Please select another binding for
 > `abort`.
 
+#### Themes
 We can also change/improve the style of the switcher using a `style.css` file
 in the same configuration directory.
 
@@ -130,4 +148,4 @@ To make the application name visible for non-selected applications (but dimmed):
 
 # Known issues
 
-If `Alt` is released before `niriswitcher` has been fully initialized, the window will not close unless the `Alt` key is pressed and released (to change to the next application) or `Esc` is pressed to close the window.
+If `Alt` (the modifier key) is released before `niriswitcher` has been fully initialized, the window will not close unless the modifier key is pressed and released (to change to the next application) or `Esc` is pressed to close the window.

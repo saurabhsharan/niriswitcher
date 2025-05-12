@@ -1,5 +1,7 @@
 name: Build RPM
 
+permissions:
+  contents: write
 on:
   release:
     types: [published]
@@ -33,5 +35,5 @@ jobs:
         if: github.event_name == 'release'
         with:
           files: |
-            /root/rpmbuild/RPMS/**/*.rpm
-            /root/rpmbuild/SRPMS/*.src.rpm
+            /github/home/rpmbuild/RPMS/**/*.rpm
+            /github/home/rpmbuild/SRPMS/*.src.rpm

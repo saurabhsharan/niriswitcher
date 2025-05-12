@@ -7,7 +7,7 @@ Summary:        Add your description here
 
 License:        MIT
 URL:            https://github.com/isaksamsten/niriswitcher
-Source0:        %{url}/archive/${version}/%{name}-%{version}.tar.gz
+Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 
 BuildArch:      noarch
 

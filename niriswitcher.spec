@@ -14,6 +14,7 @@ BuildArch:      noarch
 BuildRequires:  pyproject-rpm-macros
 BuildRequires:  python3-gobject
 BuildRequires:  python3-hatchling
+BuildRequires:  python3-pip
 Requires:       python3-gobject
 Requires:       niri
 Requires:       gtk4-layer-shell

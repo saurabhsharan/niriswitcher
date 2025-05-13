@@ -130,7 +130,7 @@ def load_configuration(config_path=None):
         max_width = section.getint("max_width", fallback=800)
         active_workspace = section.getboolean("active_workspace", fallback=True)
         scroll_animation_duration = section.getint("scroll_animation_duration", 500)
-        double_click_to_hide = section.getint("double_click_to_hide", False)
+        double_click_to_hide = section.getboolean("double_click_to_hide", False)
         general = NiriswitcherConfigGeneral(
             icon_size=icon_size,
             max_width=max_width,

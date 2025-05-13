@@ -36,13 +36,13 @@ class NiriswitcherConfigGeneral:
 @dataclass
 class NiriSwitcherConfigKeys:
     modifier: int = Gdk.KEY_Alt_L
-    next: (int, int | None) = (Gdk.KEY_Tab, None)
+    next: (int, int | None) = (Gdk.KEY_Tab, Gdk.ModifierType.ALT_MASK)
     prev: (int, int | None) = (
         Gdk.KEY_Tab,
-        Gdk.ModifierType.SHIFT_MASK,
+        Gdk.ModifierType.ALT_MASK | Gdk.ModifierType.SHIFT_MASK,
     )
-    close: (int, int | None) = (Gdk.KEY_q, None)
-    abort: (int, int | None) = (Gdk.KEY_Escape, None)
+    close: (int, int | None) = (Gdk.KEY_q, Gdk.ModifierType.ALT_MASK)
+    abort: (int, int | None) = (Gdk.KEY_Escape, Gdk.ModifierType.ALT_MASK)
 
     @property
     def modifier_as_mask(self):

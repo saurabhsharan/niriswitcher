@@ -1,4 +1,4 @@
-%define version 0.1.0
+%define version 0.1.1
 
 Name:           niriswitcher
 Version:        %{version}
@@ -41,3 +41,6 @@ An application switcher for niri.
 %changelog
 * Mon May 12 2025 Isak Samsten <isak@samsten.se> - 0.1.0-1
 - Initial release
+
+* Thu May 13 2025 Isak Samsten <isak@samsten.se> - 0.1.1-1
+- Fix incorrect configuration data type gh:#5

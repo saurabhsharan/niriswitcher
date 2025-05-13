@@ -1,4 +1,4 @@
-%define version 0.1.1
+%define version 0.1.2
 
 Name:           niriswitcher
 Version:        %{version}
@@ -44,3 +44,7 @@ An application switcher for niri.
 
 * Thu May 13 2025 Isak Samsten <isak@samsten.se> - 0.1.1-1
 - Fix incorrect configuration data type gh:#5
+
+* Thu May 13 2025 Isak Samsten <isak@samsten.se> - 0.1.2-1
+- Fix a bug where the default keybindings would be incorrectly set if no keys
+section is present in the configuration file

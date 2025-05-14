@@ -6,12 +6,19 @@ https://github.com/user-attachments/assets/775fd88c-9991-4692-a880-30d083304be9
 
 ## Installation
 
+To install the development version use:
+
 ```bash
 pipx install --system-site-packages git+https://github.com/isaksamsten/niriswitcher.git
 ```
+
+append `@tag`, where tag is a tagged version number, e.g., `0.1.2`, to the url
+to install a release version.
+
 > [!NOTE]
 > You must use `--system-site-packages` to avoid having to build `pygobjects` from source.
 > You also need to install the following system packages:
+>
 > - `python3-gobject`
 > - `gtk4-layer-shell`
 >
@@ -20,7 +27,7 @@ pipx install --system-site-packages git+https://github.com/isaksamsten/niriswitc
 
 For users of Fedora, I maintain a COPR built for every release.
 
-[![Copr build status](https://copr.fedorainfracloud.org/coprs/isaksamsten/niriswitcher/package/niriswitcher/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/isaksamsten/niriswitcher/package/niriswitcher/) 
+[![Copr build status](https://copr.fedorainfracloud.org/coprs/isaksamsten/niriswitcher/package/niriswitcher/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/isaksamsten/niriswitcher/package/niriswitcher/)
 
 ```bash
 dnf copr enable isaksamsten/niriswitcher
@@ -29,7 +36,9 @@ dnf install niriswitcher
 
 ### Configuration
 
-First we need to execute the `niriswitcher` application. The program is deamonized and waits for `USR1` signal to be shown. In the niri `config.kdl`-file we first start `niriswitcher` at startup:
+First we need to execute the `niriswitcher` application. The program is
+deamonized and waits for `USR1` signal to be shown. In the niri
+`config.kdl`-file we first start `niriswitcher` at startup:
 
 ```kdl
 spawn-at-startup "niriswitcher"
@@ -58,6 +67,9 @@ By default, `niriswitcher` uses the following keybindings:
 - `Alt+Shift+Tab` select previous application
 - `Alt+Esc` close `niriswitcher` and do not focus
 - `Alt+q` to close the selected application
+- ``Alt+` `` to show the next workspace
+- ``Alt+Shift+` `` to show the previous workspace
+
 - Release `Alt` to focus to currently selected application and close `niriswitcher`
 
 The default mappings and modifier key can be configured in the `config.ini` file.
@@ -90,6 +102,8 @@ next=Tab
 prev=Shift+Tab
 close=q
 abort=Escape
+next_workspace=grave
+prev_workspace=asciitilde
 ```
 
 The `modifier` key keeps `niriswitcher` active (once released, `niriswitcher`
@@ -108,14 +122,21 @@ bindings.
 > `abort`.
 
 #### Themes
+
 We can also change/improve the style of the switcher using a `style.css` file
 in the same configuration directory.
 
-The following CSS-classes can be styled:
+The following CSS can be styled:
 
-- `.niriswitcher-window`: the main window
+- `#niriswitcher`: the main window
+- `#application-title`: the title (above the icons)
+- `#workspace-name`: the workspace name (above the icons)
+- `#workspaces`: the workspace area
+- `.workspace`: a workspace in the workspace area (contains the icons)
+- `#workspace-indicators`: the workspace indicator area
+- `.workspace-indicator`: the workspace indicator
+- `.workspace-indicator.selected`: the currently selected workspace indicator
 - `.application-icon`: the icon
-- `.application-title`: the title (above the icons)
 - `.application-name`: the application name (below the icon)
 - `.application-strip`: the area behind the icons (inside the scroll)
 - `.application`: the application area (name + icon)

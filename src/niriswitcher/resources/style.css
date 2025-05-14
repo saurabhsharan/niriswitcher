@@ -1,36 +1,80 @@
-.niriswitcher-window {
+#niriswitcher {
+  background-color: transparent;
+
+}
+#main-view {
     background-color: rgba(44,44,44,.95);
     border-radius: 22px;
     border: 1px solid rgba(76,76,76,0.95);
     padding: 10px 20px 10px;
 }
 
-scrollbar, scrollbar * {
+.workspace scrollbar, .workspace scrollbar * {
   background-color: transparent;
   min-width: 0px;
   min-height: 0px;
   opacity: 0;
 }
 
-
-.application-title {
-    background: transparent;
-    color: white;
-}
-
-scrollbar,
-scrollbar slider {
+.workspace scrollbar,
+.workspace scrollbar slider {
     background: transparent;
     min-width: 6px;
     min-height: 6px;
 }
 
-.application-strip {
-    padding: 10px;
+
+#application-title {
+    background: transparent;
+    color: white;
+    transition: all 0.2s ease-in-out;
 }
 
-.application-strip-scroll {
+#workspace-name {
+    /* opacity: 0; */
+    transition: all 0.2s ease-in-out;
+    background-color: rgba(99,99,99,0.95);
+    color: white;
+    border-radius: 22px;
+    padding: 3px 9px;
+    margin:0px;
+    margin-left: 5px;
 }
+
+
+#workspaces {
+    margin: 5px 10px 5px;
+}
+
+.workspace-indicator {
+    background-color: rgba(44,44,44,.95);
+    transition: background 200ms 20ms;
+    margin:0;
+}
+
+.workspace-indicator:first-child {
+    border-radius: 20% 20% 0 0;
+}
+
+.workspace-indicator:last-child {
+    border-radius: 0 0 20% 20%;
+}
+
+.workspace-indicator.selected {
+    background-color: rgba(200,200,200,0.95);
+}
+
+.workspace-indicator:hover {
+    background-color: rgba(200,200,200,0.95);
+}
+
+#workspace-indicators {
+    background: transparent;
+    padding-top: 22px;
+    padding-bottom: 22px;
+    padding-right: 2px;
+}
+
 
 .application {
   background-color: transparent;
@@ -49,12 +93,16 @@ scrollbar slider {
 .application-name {
   transition: all 0.2s ease;
   opacity: 0;
-  color: white;
+  /* color: white; */
 }
-
 
 .application.selected .application-name {
   opacity: 1;
+}
+
+.application.focused .application-name {
+  opacity: 1;
+  color: red;
 }
 
 .application.selected .application-icon {

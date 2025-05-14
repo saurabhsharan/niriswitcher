@@ -1,4 +1,4 @@
-%define version 0.1.2
+%define version 0.2.0
 
 Name:           niriswitcher
 Version:        %{version}
@@ -45,6 +45,13 @@ An application switcher for niri.
 * Thu May 13 2025 Isak Samsten <isak@samsten.se> - 0.1.1-1
 - Fix incorrect configuration data type gh:#5
 
-* Thu May 13 2025 Isak Samsten <isak@samsten.se> - 0.1.2-1
+* Tue May 13 2025 Isak Samsten <isak@samsten.se> - 0.1.2-1
 - Fix a bug where the default keybindings would be incorrectly set if no keys
 section is present in the configuration file
+
+* Thu May 15 2025 Isak Samsten <isak@samsten.se> - 0.2.0-1
+- Implement workspace switching with new keybindings and UI indicators
+- Redesign window and application views for multi-workspace support
+- Smooth animations when showing/hiding the switcher
+- Enable support for multiple monitors showing the switcher on the
+currently active output.

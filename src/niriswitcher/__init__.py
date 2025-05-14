@@ -389,7 +389,10 @@ class BindingAction:
         self.mod_count = bin(int(self.state)).count("1")
 
     def matches(self, keyval, state):
-        if keyval == self.keyval and state == self.state:
+        if keyval == self.keyval and (
+            (state & Gtk.accelerator_get_default_mod_mask())
+            == (self.state & Gtk.accelerator_get_default_mod_mask())
+        ):
             return True
         return False
 

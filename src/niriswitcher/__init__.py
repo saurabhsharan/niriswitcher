@@ -699,16 +699,16 @@ class NiriswitcherWindow(Gtk.Window):
             "selection-changed", self.on_workspace_selection_changed
         )
 
-        title_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
-        title_bar.append(self.current_application_title)
-        title_bar.append(self.current_workspace_name)
-        title_bar.set_hexpand(True)
-        title_bar.set_name("top-bar")
+        top_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+        top_bar.append(self.current_application_title)
+        top_bar.append(self.current_workspace_name)
+        top_bar.set_hexpand(True)
+        top_bar.set_name("top-bar")
         switcher_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         switcher_view.set_name("main-view")
         switcher_view.set_halign(Gtk.Align.CENTER)
         switcher_view.set_valign(Gtk.Align.CENTER)
-        switcher_view.append(title_bar)
+        switcher_view.append(top_bar)
         switcher_view.append(self.workspace_stack)
 
         self.workspace_indicators = WorkspaceIndicatorsView()

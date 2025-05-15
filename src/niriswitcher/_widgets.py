@@ -595,7 +595,6 @@ class WorkspaceStack(Gtk.Stack):
         self.set_transition_type(Gtk.StackTransitionType.SLIDE_UP_DOWN)
         self.set_hhomogeneous(False)
         self.set_interpolate_size(True)
-        self.set_halign(Gtk.Align.CENTER)
 
         self.indicator: WorkspaceIndicator = None
 

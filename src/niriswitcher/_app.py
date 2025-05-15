@@ -77,21 +77,25 @@ class NiriswitcherWindow(Gtk.Window):
 
         self.current_application_title = Gtk.Label()
         self.current_application_title.set_ellipsize(Pango.EllipsizeMode.END)
-        self.current_application_title.set_width_chars(30)
         self.current_application_title.set_max_width_chars(1)
         self.current_application_title.set_hexpand(True)
-        self.current_application_title.set_halign(Gtk.Align.CENTER)
         self.current_application_title.set_name("application-title")
 
         self.current_workspace_name = Gtk.Label()
         self.current_workspace_name.set_ellipsize(Pango.EllipsizeMode.END)
-        self.current_workspace_name.set_max_width_chars(20)
+        self.current_workspace_name.set_width_chars(10)
         self.current_workspace_name.set_halign(Gtk.Align.END)
         self.current_workspace_name.set_name("workspace-name")
 
         self.workspace_stack = WorkspaceStack()
+        self.workspace_stack.set_halign(Gtk.Align.CENTER)
 
         top_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+        left_dummy = Gtk.Label()
+        left_dummy.set_name("left-dummy")
+        left_dummy.set_halign(Gtk.Align.START)
+        left_dummy.set_width_chars(10)
+        top_bar.append(left_dummy)
         top_bar.append(self.current_application_title)
         top_bar.append(self.current_workspace_name)
         top_bar.set_hexpand(True)
@@ -100,6 +104,7 @@ class NiriswitcherWindow(Gtk.Window):
         main_view.set_name("main-view")
         main_view.set_halign(Gtk.Align.CENTER)
         main_view.set_valign(Gtk.Align.CENTER)
+        main_view.set_hexpand(True)
         main_view.append(top_bar)
         main_view.append(self.workspace_stack)
 

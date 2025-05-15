@@ -6,7 +6,7 @@ from gi.repository import Gtk, Gdk
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True)
 class GeneralConfig:
     icon_size: int = 128
     scroll_animaton_duration: int = 500
@@ -15,7 +15,7 @@ class GeneralConfig:
     double_click_to_hide: bool = False
 
 
-@dataclass
+@dataclass(frozen=True)
 class KeysConfig:
     modifier: int = Gdk.KEY_Alt_L
     next: (int, int | None) = (Gdk.KEY_Tab, Gdk.ModifierType.ALT_MASK)
@@ -35,7 +35,7 @@ class KeysConfig:
     )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Config:
     general: GeneralConfig
     keys: KeysConfig

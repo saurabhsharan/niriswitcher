@@ -12,7 +12,7 @@ import configparser
 
 from dataclasses import dataclass
 
-from ._wm import NiriWindowManager, Window
+from ._wm import NiriWindowManager, Window, Workspace
 from ._anim import ease_in_out_cubic, ease_out_cubic
 
 import gi
@@ -615,6 +615,40 @@ class WorkspaceIndicatorsView(Gtk.Box):
             current = current.get_next_sibling()
 
 
+class WorkspaceStack(Gtk.Stack):
+    __gsignals__ = {
+        "selection-changed": (GObject.SignalFlags.RUN_FIRST, None, (Workspace,)),
+    }
+
+    def __init__(self):
+        super().__init__()
+        self.set_name("workspaces")
+        self.set_transition_type(Gtk.StackTransitionType.SLIDE_UP_DOWN)
+        self.set_hhomogeneous(False)
+        self.set_interpolate_size(True)
+        self.set_halign(Gtk.Align.CENTER)
+
+    def select(self, workspace_view):
+        if workspace_view is not None:
+            self.set_visible_child(workspace_view)
+            workspace_view.select_current()
+            self.emit("selection-changed", workspace_view.workspace)
+
+    def select_next(self):
+        current = self.get_visible_child()
+        next = current.get_next_sibling()
+        if next is None:
+            next = self.get_first_child()
+        self.select(next)
+
+    def select_prev(self):
+        current = self.get_visible_child()
+        prev = current.get_prev_sibling()
+        if prev is None:
+            prev = self.get_last_child()
+        self.select(prev)
+
+
 class NiriswitcherWindow(Gtk.Window):
     def __init__(self, app):
         super().__init__(application=app, title="niriswitcher")
@@ -660,12 +694,10 @@ class NiriswitcherWindow(Gtk.Window):
         self.current_workspace_name.set_halign(Gtk.Align.END)
         self.current_workspace_name.set_name("workspace-name")
 
-        self.workspace_stack = Gtk.Stack()
-        self.workspace_stack.set_name("workspaces")
-        self.workspace_stack.set_transition_type(Gtk.StackTransitionType.SLIDE_UP_DOWN)
-        self.workspace_stack.set_hhomogeneous(False)
-        self.workspace_stack.set_interpolate_size(True)
-        self.workspace_stack.set_halign(Gtk.Align.CENTER)
+        self.workspace_stack = WorkspaceStack()
+        self.workspace_stack.connect(
+            "selection-changed", self.on_workspace_selection_changed
+        )
 
         title_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
         title_bar.append(self.current_application_title)
@@ -735,6 +767,10 @@ class NiriswitcherWindow(Gtk.Window):
             )
         ):
             self.select_workspace(workspace_view)
+
+    def on_workspace_selection_changed(self, widget, workspace):
+        self.current_workspace_name.set_label(workspace.identifier)
+        self.workspace_indicators.select_by_workspace_id(workspace.id)
 
     def on_window_focus_changed(self, window):
         workspace_view = self.workspace_stack.get_visible_child()
@@ -885,15 +921,6 @@ class NiriswitcherWindow(Gtk.Window):
         workspace_view = self.workspace_stack.get_visible_child()
         workspace_view.close_current()
 
-    def select_workspace(self, workspace_view):
-        if workspace_view is not None:
-            self.current_workspace_name.set_label(workspace_view.workspace.identifier)
-            self.workspace_stack.set_visible_child(workspace_view)
-            self.workspace_indicators.select_by_workspace_id(
-                workspace_view.workspace.id
-            )
-            workspace_view.select_current()
-
     def select_next_application(self):
         workspace_stack = self.workspace_stack.get_visible_child()
         workspace_stack.select_next()
@@ -906,21 +933,13 @@ class NiriswitcherWindow(Gtk.Window):
         if not config.general.active_workspace:
             return
 
-        current = self.workspace_stack.get_visible_child()
-        next = current.get_next_sibling()
-        if next is None:
-            next = self.workspace_stack.get_first_child()
-        self.select_workspace(next)
+        self.workspace_stack.select_next()
 
     def select_prev_workspace(self):
         if not config.general.active_workspace:
             return
 
-        current = self.workspace_stack.get_visible_child()
-        prev = current.get_prev_sibling()
-        if prev is None:
-            prev = self.workspace_stack.get_last_child()
-        self.select_workspace(prev)
+        self.workspace_stack.select_prev()
 
 
 class NiriswicherApp(Gtk.Application):

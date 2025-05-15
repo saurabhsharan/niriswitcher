@@ -8,8 +8,6 @@ import time
 from collections import defaultdict
 from gi.repository import Gio, GObject
 
-from dataclasses import dataclass
-
 
 class Window(GObject.Object):
     id = GObject.Property(type=int)
@@ -36,41 +34,33 @@ class Window(GObject.Object):
         return self.app_info.get_name() if self.app_info is not None else self.app_id
 
 
-@dataclass
-class Workspace:
-    id: int
-    idx: int
-    name: str
-    output: str
-    is_active: bool
-    is_focused: bool
-    last_focus_time: float
+class Workspace(GObject.Object):
+    id = GObject.Property(type=int)
+    idx = GObject.Property(type=int)
+    name = GObject.Property(type=str)
+    output = GObject.Property(type=str)
+    is_active = GObject.Property(type=bool, default=False)
+    is_focused = GObject.Property(type=bool, default=False)
+    last_focus_time = GObject.Property(type=float)
 
-    def __post_init__(self):
-        self.name = self.name if self.name is not None else str(self.idx)
-
-    @property
+    @GObject.Property(type=str)
     def identifier(self):
         return f"{self.output}-{self.idx}"
 
-    def from_niri(workspace, last_focus_time=None):
-        return Workspace(
+    def __init__(self, workspace, last_focus_time=None):
+        super().__init__(
             id=workspace["id"],
             idx=workspace["idx"],
-            name=workspace["name"],
+            name=(
+                workspace["name"] if workspace["name"] is not None else str(self.idx)
+            ),
             output=workspace["output"],
             is_active=workspace["is_active"],
             is_focused=workspace["is_focused"],
-            last_focus_time=last_focus_time
-            if last_focus_time is not None
-            else time.time(),
+            last_focus_time=(
+                last_focus_time if last_focus_time is not None else time.time()
+            ),
         )
-
-    def __eq__(self, o):
-        return self.id == o.id
-
-    def __hash__(self):
-        return self.id
 
 
 def get_app_info(app_id):
@@ -152,7 +142,7 @@ class NiriWindowManager:
                 if workspace["is_focused"]:
                     self.active_workspace_id = workspace_id
 
-                self.workspaces[workspace_id] = Workspace.from_niri(workspace)
+                self.workspaces[workspace_id] = Workspace(workspace)
             self._workspaces_loaded.set()
 
     def on_windows_changed(self, windows_changed):

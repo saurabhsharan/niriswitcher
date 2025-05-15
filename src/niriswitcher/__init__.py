@@ -417,7 +417,7 @@ class SizeTransition:
 
 class WorkspaceView(Gtk.ScrolledWindow):
     __gsignals__ = {
-        "selection-change": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
+        "selection-changed": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
         "focus-requested": (GObject.SignalFlags.RUN_FIRST, None, (Window, bool)),
         "close-requested": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
     }
@@ -461,14 +461,14 @@ class WorkspaceView(Gtk.ScrolledWindow):
     def on_enter(self, widget, window):
         if widget is not self.current_application:
             widget.select()
-            self.emit("selection-change", window)
+            self.emit("selection-changed", window)
 
     def on_leave(self, widget, window):
         if widget is not self.current_application:
             widget.deselect()
 
         if self.current_application is not None:
-            self.emit("selection-change", self.current_application.window)
+            self.emit("selection-changed", self.current_application.window)
 
     def get_first_application_view(self):
         return self.application_views.get_first_child()
@@ -508,7 +508,7 @@ class WorkspaceView(Gtk.ScrolledWindow):
         self.current_application = application
         self.current_application.select()
         self.scroll_to(self.current_application)
-        self.emit("selection-change", self.current_application.window)
+        self.emit("selection-changed", self.current_application.window)
 
     def select_next(self):
         next = self.current_application.get_next_sibling()
@@ -839,7 +839,7 @@ class NiriswitcherWindow(Gtk.Window):
                     config.general.icon_size,
                 )
                 workspace_view.connect(
-                    "selection-change", self.on_application_selection_changed
+                    "selection-changed", self.on_application_selection_changed
                 )
                 workspace_view.connect("focus-requested", self.on_focus_requested)
                 workspace_view.connect("close-requested", self.on_close_requested)

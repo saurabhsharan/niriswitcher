@@ -359,6 +359,7 @@ class WorkspaceView(Gtk.ScrolledWindow):
         self.application_views.set_halign(Gtk.Align.CENTER)
         self.application_views.set_valign(Gtk.Align.CENTER)
         self.application_views.set_hexpand(False)
+        self.application_views.set_homogeneous(True)
         self.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
         self.set_halign(Gtk.Align.CENTER)
         self.set_child(self.application_views)

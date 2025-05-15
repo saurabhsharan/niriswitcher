@@ -1,6 +1,7 @@
 import configparser
 import os
 import importlib
+import importlib.resources
 from gi.repository import Gtk, Gdk
 from dataclasses import dataclass
 

@@ -186,7 +186,7 @@ def load_configuration(config_path=None):
     close_key = window_section.get("close", "q")
     abort_key = window_section.get("abort", "Escape")
     next_workspace_key = workspace_section.get("next", "grave")
-    prev_workspace_key = workspace_section.get("prev", "Shift+grave")
+    prev_workspace_key = workspace_section.get("prev", "Shift+asciitilde")
 
     keys = KeysConfig(
         modifier=modifier,

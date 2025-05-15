@@ -112,7 +112,7 @@ abort = "Escape"
 
 [keys.workspace]
 next = "grave"
-prev = "asciitilde" # shift+grave
+prev = "Shift+asciitilde" # shift+grave
 ```
 
 The `modifier` key keeps `niriswitcher` active (once released, `niriswitcher`

@@ -333,7 +333,9 @@ def on_workspace_indicator_pressed(gesture, n_press, x, y, workspace_indicator, 
     current_workspace_view = win.workspace_stack.get_visible_child()
     if current_workspace_view.workspace.id != workspace_indicator.workspace.id:
         win.select_workspace(
-            win.workspace_stack.get_child_by_name(workspace_indicator.workspace.name)
+            win.workspace_stack.get_child_by_name(
+                workspace_indicator.workspace.identifier
+            )
         )
 
 
@@ -929,9 +931,9 @@ def on_workspace_activated(workspace, win):
         win: The main window instance containing workspace and application views.
     """
     if win.is_visible() and (
-        workspace_view := win.workspace_stack.get_child_by_name(workspace.name)
+        workspace_view := win.workspace_stack.get_child_by_name(workspace.identifier)
     ):
-        win.current_workspace_name.set_label(workspace.name)
+        win.current_workspace_name.set_label(workspace.identifier)
         win.workspace_stack.set_visible_child(workspace_view)
         win.workspace_indicators.select_by_workspace_id(workspace.id)
         first_application = (
@@ -1002,7 +1004,7 @@ class NiriswitcherWindow(Gtk.Window):
 
         self.current_workspace_name = Gtk.Label()
         self.current_workspace_name.set_ellipsize(Pango.EllipsizeMode.END)
-        self.current_workspace_name.set_max_width_chars(1)
+        self.current_workspace_name.set_max_width_chars(20)
         self.current_workspace_name.set_halign(Gtk.Align.END)
         self.current_workspace_name.set_name("workspace-name")
 
@@ -1118,7 +1120,7 @@ class NiriswitcherWindow(Gtk.Window):
                     min(self.config.general.max_width, screen_width),
                     self.config.general.icon_size,
                 )
-                self.workspace_stack.add_named(workspace_view, workspace.name)
+                self.workspace_stack.add_named(workspace_view, workspace.identifier)
                 workspace_indicator = WorkspaceIndicatorView(workspace)
                 gesture = Gtk.GestureClick.new()
                 gesture.set_button(0)
@@ -1130,11 +1132,13 @@ class NiriswitcherWindow(Gtk.Window):
                 self.workspace_indicators.append(workspace_indicator)
 
         active_workspace = self.window_manager.get_active_workspace()
-        workspace_view = self.workspace_stack.get_child_by_name(active_workspace.name)
+        workspace_view = self.workspace_stack.get_child_by_name(
+            active_workspace.identifier
+        )
         if workspace_view is not None:
-            self.current_workspace_name.set_label(active_workspace.name)
+            self.current_workspace_name.set_label(active_workspace.identifier)
             self.workspace_stack.set_visible_child_full(
-                active_workspace.name, Gtk.StackTransitionType.NONE
+                active_workspace.identifier, Gtk.StackTransitionType.NONE
             )
             self.workspace_indicators.select_by_workspace_id(active_workspace.id)
 
@@ -1223,7 +1227,7 @@ class NiriswitcherWindow(Gtk.Window):
             workspace_view: The workspace view to select. If None, no action is taken.
         """
         if workspace_view is not None:
-            self.current_workspace_name.set_label(workspace_view.workspace.name)
+            self.current_workspace_name.set_label(workspace_view.workspace.identifier)
             self.workspace_stack.set_visible_child(workspace_view)
             self.workspace_indicators.select_by_workspace_id(
                 workspace_view.workspace.id

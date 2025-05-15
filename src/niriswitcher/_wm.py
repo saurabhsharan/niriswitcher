@@ -56,6 +56,10 @@ class Workspace:
     def __post_init__(self):
         self.name = self.name if self.name is not None else str(self.idx)
 
+    @property
+    def identifier(self):
+        return f"{self.output}-{self.idx}"
+
     def from_niri(workspace, last_focus_time=None):
         return Workspace(
             id=workspace["id"],

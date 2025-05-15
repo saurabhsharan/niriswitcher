@@ -88,25 +88,31 @@ The default mappings and modifier key can be configured in the `config.ini` file
   `false`, the switcher will show applications from all workspaces and disable
   workspace navigation.
 
-The configuration file is a simple `.ini` file in
-`$XDG_CONFIG_HOME/niriswitcher/config.ini`. This is the default config:
+The configuration file is a simple `.toml`-file in
+`$XDG_CONFIG_HOME/niriswitcher/config.toml`. This is the default config:
 
-```ini
+```toml
 [general]
 icon_size = 128
-scroll_animaton_duration = 500
 max_width = 800
 separate_workspaces = true
+scroll_animation_duration = 200
 double_click_to_hide = false
 
 [keys]
-modifier=Alt_L
-next=Tab
-prev=Shift+Tab
-close=q
-abort=Escape
-next_workspace=grave
-prev_workspace=asciitilde
+modifier = "Alt_L"
+
+[keys.switch]
+next = "Tab"
+prev = "Shift+Tab"
+
+[keys.window]
+close = "q"
+abort = "Escape"
+
+[keys.workspace]
+next = "grave"
+prev = "asciitilde" # shift+grave
 ```
 
 The `modifier` key keeps `niriswitcher` active (once released, `niriswitcher`

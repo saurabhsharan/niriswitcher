@@ -1,7 +1,7 @@
-import configparser
 import os
 import importlib
 import importlib.resources
+import tomllib
 from gi.repository import Gtk, Gdk
 from dataclasses import dataclass
 
@@ -152,50 +152,51 @@ def load_configuration(config_path=None):
     config_home = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
     config_dir = os.path.join(config_home, "niriswitcher")
     if config_path is None:
-        config_path = os.path.join(config_dir, "config.ini")
-    config = configparser.ConfigParser()
-    config.read(config_path)
-
-    if config.has_section("general"):
-        section = config["general"]
-        icon_size = section.getint("icon_size", fallback=128)
-        max_width = section.getint("max_width", fallback=800)
-        separate_workspaces = section.getboolean("separate_workspaces", fallback=True)
-        scroll_animation_duration = section.getint("scroll_animation_duration", 200)
-        double_click_to_hide = section.getboolean("double_click_to_hide", False)
-        general = GeneralConfig(
-            icon_size=icon_size,
-            max_width=max_width,
-            separate_workspaces=separate_workspaces,
-            scroll_animaton_duration=scroll_animation_duration,
-            double_click_to_hide=double_click_to_hide,
-        )
+        config_path = os.path.join(config_dir, "config.toml")
+    if os.path.isfile(config_path):
+        with open(config_path, "rb") as f:
+            config = tomllib.load(f)
     else:
-        general = GeneralConfig()
+        config = {}
 
-    if config.has_section("keys"):
-        keys = config["keys"]
-        modifier = parse_modifier_key(keys.get("modifier", fallback="Alt_L"))
-        modifier_mask = get_modifier_as_mask(modifier)
-        keys = KeysConfig(
-            modifier=modifier,
-            next=parse_accelerator_key(keys.get("next", fallback="Tab"), modifier_mask),
-            prev=parse_accelerator_key(
-                keys.get("prev", fallback="Shift+Tab"), modifier_mask
-            ),
-            close=parse_accelerator_key(keys.get("close", fallback="q"), modifier_mask),
-            abort=parse_accelerator_key(
-                keys.get("abort", fallback="Escape"), modifier_mask
-            ),
-            next_workspace=parse_accelerator_key(
-                keys.get("next_workspace", fallback="grave"), modifier_mask
-            ),
-            prev_workspace=parse_accelerator_key(
-                keys.get("prev_workspace", fallback="Shift+grave"), modifier_mask
-            ),
-        )
-    else:
-        keys = KeysConfig()
+    general_section = config.get("general", {})
+    icon_size = general_section.get("icon_size", 128)
+    max_width = general_section.get("max_width", 800)
+    separate_workspaces = general_section.get("separate_workspaces", True)
+    scroll_animation_duration = general_section.get("scroll_animation_duration", 200)
+    double_click_to_hide = general_section.get("double_click_to_hide", False)
+    general = GeneralConfig(
+        icon_size=icon_size,
+        max_width=max_width,
+        separate_workspaces=separate_workspaces,
+        scroll_animaton_duration=scroll_animation_duration,
+        double_click_to_hide=double_click_to_hide,
+    )
+
+    keys_section = config.get("keys", {})
+    modifier = parse_modifier_key(keys_section.get("modifier", "Alt_L"))
+    modifier_mask = get_modifier_as_mask(modifier)
+
+    switch_section = keys_section.get("switch", {})
+    window_section = keys_section.get("window", {})
+    workspace_section = keys_section.get("workspace", {})
+
+    next_key = switch_section.get("next", "Tab")
+    prev_key = switch_section.get("prev", "Shift+Tab")
+    close_key = window_section.get("close", "q")
+    abort_key = window_section.get("abort", "Escape")
+    next_workspace_key = workspace_section.get("next", "grave")
+    prev_workspace_key = workspace_section.get("prev", "Shift+grave")
+
+    keys = KeysConfig(
+        modifier=modifier,
+        next=parse_accelerator_key(next_key, modifier_mask),
+        prev=parse_accelerator_key(prev_key, modifier_mask),
+        close=parse_accelerator_key(close_key, modifier_mask),
+        abort=parse_accelerator_key(abort_key, modifier_mask),
+        next_workspace=parse_accelerator_key(next_workspace_key, modifier_mask),
+        prev_workspace=parse_accelerator_key(prev_workspace_key, modifier_mask),
+    )
 
     return Config(general=general, keys=keys)
 

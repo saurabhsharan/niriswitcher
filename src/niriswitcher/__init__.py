@@ -20,7 +20,7 @@ import gi
 gi.require_version("Gtk4LayerShell", "1.0")
 gi.require_version("Gtk", "4.0")
 
-from gi.repository import Gtk, Gio, GLib, Gdk, Pango
+from gi.repository import Gtk, Gio, GLib, Gdk, Pango, GObject
 from gi.repository import Gtk4LayerShell as LayerShell
 
 from ._config import config
@@ -65,11 +65,18 @@ class ApplicationView(Gtk.Box):
         size: The size to be used for the application icon.
     """
 
-    def __init__(
-        self, main_view: "NiriswitcherWindow", window: Window, *, size: int
-    ) -> None:
+    __gsignals__ = {
+        "enter": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
+        "leave": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
+        "released": (
+            GObject.SignalFlags.RUN_FIRST,
+            None,
+            (Gtk.GestureClick, int, Window),
+        ),
+    }
+
+    def __init__(self, window: Window, *, size: int) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
-        self.main_view = main_view
         self.window = window
         icon = new_app_icon_or_default(window.app_info, size)
         name = Gtk.Label()
@@ -97,28 +104,13 @@ class ApplicationView(Gtk.Box):
     def on_release(
         self, gesture: Gtk.GestureClick, n_press: int, x: float, y: float
     ) -> None:
-        hide = True
-        if config.general.double_click_to_hide:
-            hide = n_press > 1
-
-        button = gesture.get_current_button()
-        if button == 1:
-            self.main_view.focus_window(self, hide=hide)
-        elif button == 3:
-            self.main_view.close_window(self)
+        self.emit("released", gesture, n_press, self.window)
 
     def on_enter(self, motion: Gtk.EventControllerMotion, x: float, y: float) -> None:
-        if self is not self.main_view.current_application:
-            self.main_view.current_application_title.set_label(self.window.title)
-            self.select()
+        self.emit("enter", self.window)
 
     def on_leave(self, motion: Gtk.EventControllerMotion) -> None:
-        if self is not self.main_view.current_application:
-            self.deselect()
-            if self.main_view.current_application is not None:
-                self.main_view.current_application_title.set_label(
-                    self.main_view.current_application.window.title
-                )
+        self.emit("leave", self.window)
 
     def select(self) -> None:
         self.add_css_class("selected")
@@ -424,10 +416,14 @@ class SizeTransition:
 
 
 class WorkspaceView(Gtk.ScrolledWindow):
-    # TODO: refactor parent
-    def __init__(self, main_view, workspace, windows, max_size=800, icon_size=128):
+    __gsignals__ = {
+        "selection-change": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
+        "focus-requested": (GObject.SignalFlags.RUN_FIRST, None, (Window, bool)),
+        "close-requested": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
+    }
+
+    def __init__(self, workspace, windows, max_size=800, icon_size=128):
         super().__init__()
-        self.main_view = main_view
         self.application_views = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=12
         )
@@ -440,42 +436,50 @@ class WorkspaceView(Gtk.ScrolledWindow):
         self.set_halign(Gtk.Align.CENTER)
         self.set_child(self.application_views)
         for window in windows:
-            application = ApplicationView(main_view, window, size=icon_size)
-            self.application_views.append(application)
+            application_view = ApplicationView(window, size=icon_size)
+            application_view.connect("enter", self.on_enter)
+            application_view.connect("leave", self.on_leave)
+            application_view.connect("released", self.on_released)
+            self.application_views.append(application_view)
 
         self.max_size = max_size
         self.size_transition = SizeTransition(self)
         self.scroll_to = AnimateScrollToWidget(self)
+        self.current_application = self.get_initial_selection()
+
+    def on_released(self, widget, gesture, n_press, window):
+        hide = True
+        if config.general.double_click_to_hide:
+            hide = n_press > 1
+
+        button = gesture.get_current_button()
+        if button == 1:
+            self.emit("focus-requested", window, hide)
+        elif button == 3:
+            self.emit("close-requested", window)
+
+    def on_enter(self, widget, window):
+        if widget is not self.current_application:
+            widget.select()
+            self.emit("selection-change", window)
+
+    def on_leave(self, widget, window):
+        if widget is not self.current_application:
+            widget.deselect()
+
+        if self.current_application is not None:
+            self.emit("selection-change", self.current_application.window)
 
     def get_first_application_view(self):
-        """
-        Returns the first application view from the list of application views.
-
-        :return: The first application view object.
-        :rtype: ApplicationView or None
-        """
         return self.application_views.get_first_child()
 
     def get_last_application_view(self):
-        """
-        Returns the last application view in the list of application views.
-
-        :return: The last application view object.
-        """
         return self.application_views.get_last_child()
 
+    def is_empty(self):
+        return self.application_views.get_first_child() is None
+
     def get_initial_selection(self):
-        """
-        Returns the initial selection for the application view.
-
-        The initial selection is determined by retrieving the first application view
-        and then attempting to get its next sibling. If there is no next sibling,
-        the first application view is returned as the selection.
-
-        Returns:
-            ApplicationView: The initial selection, either the next sibling of the first
-            application view or the first application view itself if no sibling exists.
-        """
         first = self.get_first_application_view()
         second = first.get_next_sibling()
         if second is None:
@@ -483,45 +487,55 @@ class WorkspaceView(Gtk.ScrolledWindow):
 
         return second
 
-    def remove_application_by_window_id(self, window_id):
-        """
-        Removes the specified window from the application strip.
+    def focus_current(self, hide=True):
+        if self.current_application is not None:
+            self.emit("focus-requested", self.current_application.window, hide)
 
-        Searches for the child in the application strip whose window ID matches
-        the given window's ID. If found, removes the corresponding application
-        and returns a tuple indicating success and the previous (or next)
-        sibling. If not found, returns a tuple indicating failure and None.
+    def close_current(self):
+        if self.current_application is not None:
+            self.emit("close-requested", self.current_application.window)
 
-        Args:
-            window: The window object to be removed.
+    def select_current(self):
+        self.select(self.current_application)
 
-        Returns:
-            tuple: A tuple (success, sibling), where 'success' is True if the
-            window was found and removed, and 'sibling' is the previous sibling
-            if available, otherwise the next sibling. If not found, returns
-            (False, None).
-        """
-        if any(
-            (current := application_view).window.id == window_id
-            for application_view in self
-        ):
-            prev = current.get_prev_sibling()
-            if prev is None:
-                prev = current.get_next_sibling()
+    def select(self, application):
+        if application is None:
+            return
+
+        if self.current_application is not None:
+            self.current_application.deselect()
+
+        self.current_application = application
+        self.current_application.select()
+        self.scroll_to(self.current_application)
+        self.emit("selection-change", self.current_application.window)
+
+    def select_next(self):
+        next = self.current_application.get_next_sibling()
+        if next is None:
+            next = self.application_views.get_first_child()
+
+        self.select(next)
+
+    def select_prev(self):
+        prev = self.current_application.get_prev_sibling()
+        if prev is None:
+            prev = self.application_views.get_last_child()
+
+        self.select(prev)
+
+    def remove_by_window_id(self, window_id):
+        if any((current := av).window.id == window_id for av in self):
             self.remove_application(current)
-            return True, prev
+            return True
 
-        return False, None
+        return False
 
     def remove_application(self, application):
-        """
-        Removes the specified application from the application views and
-        updates the size.
-
-        Args:
-            application: The application instance to be removed.
-        """
         before = self.application_views.measure(Gtk.Orientation.HORIZONTAL, -1)
+        if application == self.current_application:
+            self.select_prev()
+
         self.application_views.remove(application)
         after = self.application_views.measure(Gtk.Orientation.HORIZONTAL, -1)
         self.size_transition(
@@ -677,7 +691,6 @@ class NiriswitcherWindow(Gtk.Window):
         self.set_resizable(False)
         self.set_name("niriswitcher")
         self.set_default_size(-1, 100)
-        self.current_application = None
 
         key_controller = Gtk.EventControllerKey.new()
         key_controller.connect("key-released", self.on_key_released)
@@ -710,13 +723,8 @@ class NiriswitcherWindow(Gtk.Window):
 
     def on_window_closed(self, window):
         for workspace_view in self.workspace_stack:
-            is_removed, application = workspace_view.remove_application_by_window_id(
-                window.id
-            )
-            if is_removed:
-                if application is not None:
-                    self.select_application(application)
-                else:
+            if workspace_view.remove_by_window_id(window.id):
+                if workspace_view.is_empty():
                     self.hide()
                 return
 
@@ -726,14 +734,7 @@ class NiriswitcherWindow(Gtk.Window):
                 workspace.identifier
             )
         ):
-            self.current_workspace_name.set_label(workspace.identifier)
-            self.workspace_stack.set_visible_child(workspace_view)
-            self.workspace_indicators.select_by_workspace_id(workspace.id)
-            first_application = (
-                self.workspace_stack.get_visible_child().get_first_application_view()
-            )
-            if first_application is not None:
-                self.select_application(first_application)
+            self.select_workspace(workspace_view)
 
     def on_window_focus_changed(self, window):
         workspace_view = self.workspace_stack.get_visible_child()
@@ -743,6 +744,17 @@ class NiriswitcherWindow(Gtk.Window):
                 workspace_view.scroll_to(application_view)
             else:
                 application_view.unfocus()
+
+    def on_application_selection_changed(self, widget, window):
+        self.current_application_title.set_label(window.title)
+
+    def on_close_requested(self, widget, window):
+        self.window_manager.close_window(window.id)
+
+    def on_focus_requested(self, widget, window, hide):
+        self.window_manager.focus_window(window.id)
+        if hide:
+            self.hide()
 
     def on_map(self, window):
         surface = self.get_surface()
@@ -800,7 +812,6 @@ class NiriswitcherWindow(Gtk.Window):
     def _show_windows_from_all_workspaces(self, screen_width):
         windows = self.window_manager.get_windows(active_workspace=False)
         workspace_view = WorkspaceView(
-            self,
             None,
             windows,
             max_size=min(config.general.max_width, screen_width),
@@ -809,9 +820,7 @@ class NiriswitcherWindow(Gtk.Window):
         self.workspace_indicators.set_visible(False)
         self.current_workspace_name.set_visible(False)
         self.workspace_stack.add_named(workspace_view, "all")
-        init = self.workspace_stack.get_visible_child().get_initial_selection()
-        if init is not None:
-            self.select_application(init)
+        if not workspace_view.is_empty():
             self.window_manager.connect("window-closed", self.on_window_closed)
             self.window_manager.connect(
                 "window-focus-changed", self.on_window_focus_changed
@@ -824,12 +833,16 @@ class NiriswitcherWindow(Gtk.Window):
             windows = self.window_manager.get_windows(workspace_id=workspace.id)
             if len(windows) > 0:
                 workspace_view = WorkspaceView(
-                    self,
                     workspace,
                     windows,
                     min(config.general.max_width, screen_width),
                     config.general.icon_size,
                 )
+                workspace_view.connect(
+                    "selection-change", self.on_application_selection_changed
+                )
+                workspace_view.connect("focus-requested", self.on_focus_requested)
+                workspace_view.connect("close-requested", self.on_close_requested)
                 self.workspace_stack.add_named(workspace_view, workspace.identifier)
                 workspace_indicator = WorkspaceIndicatorView(workspace)
                 gesture = Gtk.GestureClick.new()
@@ -852,9 +865,9 @@ class NiriswitcherWindow(Gtk.Window):
             )
             self.workspace_indicators.select_by_workspace_id(active_workspace.id)
 
-            init = self.workspace_stack.get_visible_child().get_initial_selection()
-            if init is not None:
-                self.select_application(init)
+            active_workspace_view = self.workspace_stack.get_visible_child()
+            if not active_workspace_view.is_empty():
+                active_workspace_view.select_current()
                 self.window_manager.connect("window-closed", self.on_window_closed)
                 self.window_manager.connect(
                     "workspace-activated",
@@ -864,98 +877,32 @@ class NiriswitcherWindow(Gtk.Window):
                     "window-focus-changed", self.on_window_focus_changed
                 )
 
-    def focus_selected_window(self, hide=True):
-        self.focus_window(self.current_application, hide=hide)
-
-    def focus_window(self, application, hide=True):
-        if application is not None:
-            if hide:
-                self.hide()
-
-            self.window_manager.focus_window(application.window.id)
+    def focus_selected_window(self):
+        workspace_view = self.workspace_stack.get_visible_child()
+        workspace_view.focus_current(hide=True)
 
     def close_selected_window(self):
-        self.close_window(self.current_application)
-
-    def close_window(self, application):
-        """
-        Closes the window associated with the given application.
-
-        Args:
-            application: The application object whose window should be closed. It is expected to have a 'window' attribute with an 'id'.
-
-        Returns:
-            None
-        """
-        self.window_manager.close_window(application.window.id)
-
-    def select_application(self, application):
-        """
-        Selects the specified application, deselecting the current one if
-        necessary, and updates the UI accordingly.
-
-        Args:
-            application: The application object to be selected.
-        """
-        if self.current_application is not None:
-            self.current_application.deselect()
-
-        self.current_application = application
-        self.current_application.select()
-        self.current_application_title.set_label(self.current_application.window.title)
-        self.workspace_stack.get_visible_child().scroll_to(self.current_application)
+        workspace_view = self.workspace_stack.get_visible_child()
+        workspace_view.close_current()
 
     def select_workspace(self, workspace_view):
-        """
-        Selects the specified workspace view, updates the current workspace label,
-        displays the selected workspace, updates workspace indicators, and selects
-        the first application in the workspace if available.
-
-        Args:
-            workspace_view: The workspace view to select. If None, no action is taken.
-        """
         if workspace_view is not None:
             self.current_workspace_name.set_label(workspace_view.workspace.identifier)
             self.workspace_stack.set_visible_child(workspace_view)
             self.workspace_indicators.select_by_workspace_id(
                 workspace_view.workspace.id
             )
-            first_app = workspace_view.get_first_application_view()
-            if first_app is not None:
-                self.select_application(first_app)
+            workspace_view.select_current()
 
     def select_next_application(self):
-        """
-        Selects the next application in the sequence. If there is no next sibling application,
-        selects the first application view in the currently visible workspace.
-        """
-        next = self.current_application.get_next_sibling()
-        if next is None:
-            next = self.workspace_stack.get_visible_child().get_first_application_view()
-        self.select_application(next)
+        workspace_stack = self.workspace_stack.get_visible_child()
+        workspace_stack.select_next()
 
     def select_prev_application(self):
-        """
-        Selects the previous application in the workspace stack. If there is no
-        previous sibling application, selects the last application view in the
-        currently visible workspace.
-        """
-        prev = self.current_application.get_prev_sibling()
-        if prev is None:
-            prev = self.workspace_stack.get_visible_child().get_last_application_view()
-        self.select_application(prev)
+        workspace_stack = self.workspace_stack.get_visible_child()
+        workspace_stack.select_prev()
 
     def select_next_workspace(self):
-        """
-        Selects the next workspace in the workspace stack.
-
-        If there is no active workspace, the method returns immediately.
-        Otherwise, it selects the next sibling workspace. If the current workspace
-        is the last one, it wraps around and selects the first workspace.
-
-        Returns:
-            None
-        """
         if not config.general.active_workspace:
             return
 
@@ -966,13 +913,6 @@ class NiriswitcherWindow(Gtk.Window):
         self.select_workspace(next)
 
     def select_prev_workspace(self):
-        """
-        Selects the previous workspace in the workspace stack.
-
-        If there is no currently active workspace, the method returns immediately.
-        If the current workspace is the first in the stack, wraps around to the last workspace.
-
-        """
         if not config.general.active_workspace:
             return
 

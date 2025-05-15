@@ -6,41 +6,34 @@ import threading
 import time
 
 from collections import defaultdict
-from gi.repository import Gio
+from gi.repository import Gio, GObject
 
 from dataclasses import dataclass
 
 
-@dataclass
-class Window:
-    id: int
-    workspace_id: int
-    app_id: str
-    app_info: Gio.DesktopAppInfo
-    title: str
-    last_focus_time: int
+class Window(GObject.Object):
+    id = GObject.Property(type=int)
+    workspace_id = GObject.Property(type=int)
+    app_id = GObject.Property(type=str)
+    app_info = GObject.Property(type=Gio.DesktopAppInfo)
+    title = GObject.Property(type=str)
+    last_focus_time = GObject.Property(type=float)
 
-    def from_niri(window, last_focus_time=None):
-        return Window(
+    def __init__(self, window, last_focus_time=None):
+        super().__init__(
             id=window["id"],
             workspace_id=window["workspace_id"],
             app_id=window["app_id"],
             app_info=get_app_info(window["app_id"]),
             title=window["title"],
-            last_focus_time=last_focus_time
-            if last_focus_time is not None
-            else time.time_ns(),
+            last_focus_time=(
+                last_focus_time if last_focus_time is not None else time.time()
+            ),
         )
 
     @property
     def name(self):
         return self.app_info.get_name() if self.app_info is not None else self.app_id
-
-    def __eq__(self, o):
-        return self.id == o.id
-
-    def __hash__(self):
-        return self.id
 
 
 @dataclass
@@ -51,7 +44,7 @@ class Workspace:
     output: str
     is_active: bool
     is_focused: bool
-    last_focus_time: int
+    last_focus_time: float
 
     def __post_init__(self):
         self.name = self.name if self.name is not None else str(self.idx)
@@ -70,7 +63,7 @@ class Workspace:
             is_focused=workspace["is_focused"],
             last_focus_time=last_focus_time
             if last_focus_time is not None
-            else time.time_ns(),
+            else time.time(),
         )
 
     def __eq__(self, o):
@@ -165,14 +158,14 @@ class NiriWindowManager:
     def on_windows_changed(self, windows_changed):
         with self.lock:
             self.windows.clear()
-            now = time.time_ns()
+            now = time.time()
             for window in windows_changed["windows"]:
                 last_focus_time = now
                 window_id = window["id"]
                 if window["is_focused"]:
                     last_focus_time = last_focus_time + 1
                     self.active_window_id = window_id
-                window = Window.from_niri(window, last_focus_time=last_focus_time)
+                window = Window(window, last_focus_time=last_focus_time)
                 self.windows[window_id] = window
             self._windows_loaded.set()
 
@@ -194,7 +187,7 @@ class NiriWindowManager:
                 with self.lock:
                     window = opened_or_changed["window"]
                     window_id = window["id"]
-                    self.windows[window_id] = Window.from_niri(window)
+                    self.windows[window_id] = Window(window)
             elif workspace_window := obj.get("WorkspaceActiveWindowChanged"):
                 workspace_id = workspace_window["workspace_id"]
                 with self.lock:
@@ -202,13 +195,13 @@ class NiriWindowManager:
                     window_id = workspace_window["active_window_id"]
                     if window_id in self.windows:
                         self.active_window_id = window_id
-                        self.windows[window_id].last_focus_time = time.time_ns()
+                        self.windows[window_id].last_focus_time = time.time()
                         self._trigger("window-focus-changed", self.windows[window_id])
             elif window_focus_changed := obj.get("WindowFocusChanged"):
                 with self.lock:
                     window_id = window_focus_changed["id"]
                     if window_id in self.windows:
-                        self.windows[window_id].last_focus_time = time.time_ns()
+                        self.windows[window_id].last_focus_time = time.time()
                         self.active_window_id = window_id
                         self._trigger("window-focus-changed", self.windows[window_id])
             elif workspace_activated := obj.get("WorkspaceActivated"):

@@ -826,7 +826,7 @@ class NiriswitcherWindow(Gtk.Window):
 
         self.current_application = None
 
-    def on_show_windows_from_all_workspaces(self, screen_width):
+    def _show_windows_from_all_workspaces(self, screen_width):
         windows = self.window_manager.get_windows(active_workspace=False)
         workspace_view = WorkspaceView(
             self,
@@ -848,7 +848,7 @@ class NiriswitcherWindow(Gtk.Window):
                 "window-focus-changed", on_window_focus_changed, self
             )
 
-    def on_show_windows_from_active_workspace(self, screen_width):
+    def _show_windows_from_active_workspace(self, screen_width):
         self.workspace_indicators.set_visible(True)
         self.current_workspace_name.set_visible(True)
         for workspace in self.window_manager.get_workspaces():
@@ -913,9 +913,9 @@ class NiriswitcherWindow(Gtk.Window):
 
         max_size = int(geometry.width * 0.9)
         if not config.general.active_workspace:
-            self.on_show_windows_from_all_workspaces(max_size)
+            self._show_windows_from_all_workspaces(max_size)
         else:
-            self.on_show_windows_from_active_workspace(max_size)
+            self._show_windows_from_active_workspace(max_size)
 
     def focus_selected_window(self, hide=True):
         self.focus_window(self.current_application, hide=hide)

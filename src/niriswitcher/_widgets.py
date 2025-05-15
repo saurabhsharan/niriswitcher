@@ -252,12 +252,14 @@ class GenericTransition:
     def __call__(self, *args, **kwargs):
         self._current = self.initial
 
+        if self.duration == 0:
+            self.setter(self.target)
+            self.method(*args, **kwargs)
+            return
+
         if self.before:
             self.setter(self.initial)
             self.method(*args, **kwargs)
-
-        if self.duration == 0:
-            self.setter(self.target)
 
         def idle_add():
             delta = self.target - self.initial

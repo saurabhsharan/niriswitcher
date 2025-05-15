@@ -214,10 +214,10 @@ class NiriswitcherWindow(Gtk.Window):
         geometry = monitor.get_geometry()
 
         max_size = int(geometry.width * 0.9)
-        if not config.general.active_workspace:
-            self._show_windows_from_all_workspaces(max_size)
+        if not config.general.separate_workspaces:
+            self._show_unified_workspace(max_size)
         else:
-            self._show_windows_from_active_workspace(max_size)
+            self._show_separate_workspaces(max_size)
 
     def _create_keybindings(self):
         return sorted(
@@ -237,7 +237,7 @@ class NiriswitcherWindow(Gtk.Window):
             reverse=True,
         )
 
-    def _show_windows_from_all_workspaces(self, screen_width):
+    def _show_unified_workspace(self, screen_width):
         windows = self.window_manager.get_windows(active_workspace=False)
         workspace_view = WorkspaceView(
             None,
@@ -259,7 +259,7 @@ class NiriswitcherWindow(Gtk.Window):
             "window-focus-changed", self.on_window_focus_changed
         )
 
-    def _show_windows_from_active_workspace(self, screen_width):
+    def _show_separate_workspaces(self, screen_width):
         self.workspace_indicator.set_visible(True)
         self.current_workspace_name.set_visible(True)
         for workspace in self.window_manager.get_workspaces():
@@ -308,13 +308,13 @@ class NiriswitcherWindow(Gtk.Window):
         workspace_stack.select_prev()
 
     def select_next_workspace(self):
-        if not config.general.active_workspace:
+        if not config.general.separate_workspaces:
             return
 
         self.workspace_indicator.select_next()
 
     def select_prev_workspace(self):
-        if not config.general.active_workspace:
+        if not config.general.separate_workspaces:
             return
 
         self.workspace_indicator.select_prev()

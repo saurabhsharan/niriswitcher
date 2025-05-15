@@ -83,7 +83,10 @@ The default mappings and modifier key can be configured in the `config.ini` file
 - The scroll animation speed (set to 0 to disable)
 - If single click change application without hiding the switcher (double
   clicking an application changes focus and hides the switcher)
-- If only applications from the current workspace is visible
+- If `separate_workspaces` is set to true, the application switcher will
+  show windows from the current workspace and enable workspace navigation. If
+  `false`, the switcher will show applications from all workspaces and disable
+  workspace navigation.
 
 The configuration file is a simple `.ini` file in
 `$XDG_CONFIG_HOME/niriswitcher/config.ini`. This is the default config:
@@ -93,7 +96,7 @@ The configuration file is a simple `.ini` file in
 icon_size = 128
 scroll_animaton_duration = 500
 max_width = 800
-active_workspace = true
+separate_workspaces = true
 double_click_to_hide = false
 
 [keys]

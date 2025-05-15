@@ -11,7 +11,7 @@ class GeneralConfig:
     icon_size: int = 128
     scroll_animaton_duration: int = 500
     max_width: int = 800
-    active_workspace: bool = True
+    separate_workspaces: bool = True
     double_click_to_hide: bool = False
 
 
@@ -160,13 +160,13 @@ def load_configuration(config_path=None):
         section = config["general"]
         icon_size = section.getint("icon_size", fallback=128)
         max_width = section.getint("max_width", fallback=800)
-        active_workspace = section.getboolean("active_workspace", fallback=True)
+        separate_workspaces = section.getboolean("separate_workspaces", fallback=True)
         scroll_animation_duration = section.getint("scroll_animation_duration", 200)
         double_click_to_hide = section.getboolean("double_click_to_hide", False)
         general = GeneralConfig(
             icon_size=icon_size,
             max_width=max_width,
-            active_workspace=active_workspace,
+            separate_workspaces=separate_workspaces,
             scroll_animaton_duration=scroll_animation_duration,
             double_click_to_hide=double_click_to_hide,
         )

@@ -26,76 +26,6 @@ from gi.repository import Gtk4LayerShell as LayerShell
 from ._config import config
 
 
-def on_application_released(gesture, n_press, x, y, application, win):
-    """
-    Handles the release event of an application gesture, determining whether to
-    focus or close the application window based on the mouse button pressed and
-    the number of presses.
-
-    Args:
-        gesture: The gesture object representing the user's input.
-        n_press (int): The number of times the button was pressed.
-        x (int): The x-coordinate of the gesture event.
-        y (int): The y-coordinate of the gesture event.
-        application: The application instance associated with the gesture.
-        win: The window manager instance responsible for handling window actions.
-
-    Returns:
-        None
-    """
-    hide = True
-    if config.general.double_click_to_hide:
-        hide = n_press > 1
-
-    button = gesture.get_current_button()
-    if button == 1:
-        win.focus_window(application, hide=hide)
-    elif button == 3:
-        win.close_window(application)
-
-
-def on_application_enter(motion, x, y, application, win):
-    """
-    Handles the event when the application is entered.
-
-    If the entered application is not the current application, updates the window's
-    current application title and selects the new application.
-
-    Args:
-        motion: The motion event or object triggering the application enter.
-        x (int): The x-coordinate of the event.
-        y (int): The y-coordinate of the event.
-        application: The application object being entered.
-        win: The window object managing the applications.
-    """
-    if application is not win.current_application:
-        win.current_application_title.set_label(application.window.title)
-        application.select()
-
-
-def on_application_leave(motion, application, win):
-    """
-    Handles the event when an application is left.
-
-    If the specified application is not the current application, it will be deselected.
-    If there is a current application, updates the window's current application title label.
-
-    Args:
-        motion: The motion event or object triggering the leave.
-        application: The application instance being left.
-        win: The window instance containing the applications.
-
-    Returns:
-        None
-    """
-    if application is not win.current_application:
-        application.deselect()
-        if win.current_application is not None:
-            win.current_application_title.set_label(
-                win.current_application.window.title
-            )
-
-
 def on_workspace_indicator_pressed(gesture, n_press, x, y, workspace_indicator, win):
     """
     Handles the event when a workspace indicator is pressed.
@@ -171,8 +101,11 @@ class ApplicationView(Gtk.Box):
         size: The size to be used for the application icon.
     """
 
-    def __init__(self, window: Window, *, size):
+    def __init__(
+        self, main_view: "NiriswitcherWindow", window: Window, *, size: int
+    ) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        self.main_view = main_view
         self.window = window
         icon = new_app_icon_or_default(window.app_info, size)
         name = Gtk.Label()
@@ -188,16 +121,51 @@ class ApplicationView(Gtk.Box):
         name.add_css_class("application-name")
         icon.add_css_class("application-icon")
 
-    def select(self):
+        gesture = Gtk.GestureClick.new()
+        gesture.set_button(0)
+        gesture.connect("released", self.on_release)
+        motion = Gtk.EventControllerMotion.new()
+        motion.connect("enter", self.on_enter)
+        motion.connect("leave", self.on_leave)
+        self.add_controller(motion)
+        self.add_controller(gesture)
+
+    def on_release(
+        self, gesture: Gtk.GestureClick, n_press: int, x: float, y: float
+    ) -> None:
+        hide = True
+        if config.general.double_click_to_hide:
+            hide = n_press > 1
+
+        button = gesture.get_current_button()
+        if button == 1:
+            self.main_view.focus_window(self, hide=hide)
+        elif button == 3:
+            self.main_view.close_window(self)
+
+    def on_enter(self, motion: Gtk.EventControllerMotion, x: float, y: float) -> None:
+        if self is not self.main_view.current_application:
+            self.main_view.current_application_title.set_label(self.window.title)
+            self.select()
+
+    def on_leave(self, motion: Gtk.EventControllerMotion) -> None:
+        if self is not self.main_view.current_application:
+            self.deselect()
+            if self.main_view.current_application is not None:
+                self.main_view.current_application_title.set_label(
+                    self.main_view.current_application.window.title
+                )
+
+    def select(self) -> None:
         self.add_css_class("selected")
 
-    def deselect(self):
+    def deselect(self) -> None:
         self.remove_css_class("selected")
 
-    def focus(self):
+    def focus(self) -> None:
         self.add_css_class("focused")
 
-    def unfocus(self):
+    def unfocus(self) -> None:
         self.remove_css_class("focused")
 
 
@@ -493,8 +461,9 @@ class SizeTransition:
 
 class WorkspaceView(Gtk.ScrolledWindow):
     # TODO: refactor parent
-    def __init__(self, parent, workspace, windows, max_size=800, icon_size=128):
+    def __init__(self, main_view, workspace, windows, max_size=800, icon_size=128):
         super().__init__()
+        self.main_view = main_view
         self.application_views = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=12
         )
@@ -507,16 +476,7 @@ class WorkspaceView(Gtk.ScrolledWindow):
         self.set_halign(Gtk.Align.CENTER)
         self.set_child(self.application_views)
         for window in windows:
-            application = ApplicationView(window, size=icon_size)
-            gesture = Gtk.GestureClick.new()
-            gesture.set_button(0)
-            gesture.connect("released", on_application_released, application, parent)
-            motion = Gtk.EventControllerMotion.new()
-            motion.connect("enter", on_application_enter, application, parent)
-            motion.connect("leave", on_application_leave, application, parent)
-            application.add_controller(motion)
-            application.add_controller(gesture)
-
+            application = ApplicationView(main_view, window, size=icon_size)
             self.application_views.append(application)
 
         self.max_size = max_size

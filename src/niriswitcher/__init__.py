@@ -736,7 +736,7 @@ class NiriswitcherWindow(Gtk.Window):
 
     def on_key_released(self, controller, keyval, keycode, state):
         if keyval == config.keys.modifier:
-            self.focus_selected_window(hide=True)
+            self.focus_selected_window()
             return True
         return False
 

@@ -50,42 +50,6 @@ def on_workspace_indicator_pressed(gesture, n_press, x, y, workspace_indicator, 
         )
 
 
-def on_key_release(controller, keyval, keycode, state, win):
-    """
-    Handles the key release event for the given controller.
-
-    If the released key is either the left or right Alt key, this function
-    hides and activates the currently selected window.
-    """
-    if keyval == config.keys.modifier:
-        win.focus_selected_window(hide=True)
-        return True
-    return False
-
-
-def on_press_key(controller, keyval, keycode, state, win):
-    """
-    Handles key press events to manage window selection and visibility.
-
-    Detects specific key combinations involving Tab, Shift, and Alt to
-    trigger window navigation actions or hide the window.
-    """
-
-    if keyval == Gdk.KEY_ISO_Left_Tab:
-        keyval = Gdk.KEY_Tab
-
-    keyval_name = Gdk.keyval_name(keyval)
-    if keyval_name and len(keyval_name) == 1 and keyval_name.isalpha():
-        keyval = Gdk.keyval_from_name(keyval_name.lower())
-
-    actions = win.get_actions()
-
-    for action in actions:
-        if action.matches(keyval, state):
-            action()
-            break
-
-
 class ApplicationView(Gtk.Box):
     """
     A custom GTK Box widget representing an application view with an icon and name label.
@@ -329,7 +293,7 @@ class KeybindingAction:
             return True
         return False
 
-    def __call__(self):
+    def execute(self):
         self.action()
 
 
@@ -637,73 +601,6 @@ class WorkspaceIndicatorsView(Gtk.Box):
             current = current.get_next_sibling()
 
 
-def on_window_closed(window, workspace_stack, win):
-    """
-    Handles the event when a window is closed by removing the corresponding application from the workspace stack.
-    If the application is found and removed, it selects the application or hides the window if none remain.
-
-    Args:
-        window: The window object that was closed.
-        workspace_stack: A list of workspace views to search for the application.
-        win: The window manager or controller responsible for selecting or hiding applications.
-    """
-    for workspace_view in workspace_stack:
-        is_removed, application = workspace_view.remove_application_by_window_id(
-            window.id
-        )
-        if is_removed:
-            if application is not None:
-                win.select_application(application)
-            else:
-                win.hide()
-            return
-
-
-def on_workspace_activated(workspace, win):
-    """
-    Handles actions to perform when a workspace is activated.
-
-    If the activated workspace is visible, updates the current workspace label,
-    sets the visible child in the workspace stack, updates the workspace indicator,
-    and selects the first application in the workspace if available.
-
-    Args:
-        workspace: The workspace object that has been activated.
-        win: The main window instance containing workspace and application views.
-    """
-    if win.is_visible() and (
-        workspace_view := win.workspace_stack.get_child_by_name(workspace.identifier)
-    ):
-        win.current_workspace_name.set_label(workspace.identifier)
-        win.workspace_stack.set_visible_child(workspace_view)
-        win.workspace_indicators.select_by_workspace_id(workspace.id)
-        first_application = (
-            win.workspace_stack.get_visible_child().get_first_application_view()
-        )
-        if first_application is not None:
-            win.select_application(first_application)
-
-
-def on_window_focus_changed(window, win):
-    """
-    Handles the event when the window focus changes.
-
-    Iterates through the application views in the current workspace and updates their focus state
-    based on whether their window matches the newly focused window.
-
-    Args:
-        window: The window object that has gained focus.
-        win: The main window object containing the workspace stack.
-    """
-    workspace_view = win.workspace_stack.get_visible_child()
-    for application_view in workspace_view:
-        if application_view.window.id == window.id:
-            application_view.focus()
-            workspace_view.scroll_to(application_view)
-        else:
-            application_view.unfocus()
-
-
 class NiriswitcherWindow(Gtk.Window):
     def __init__(self, app):
         super().__init__(application=app, title="niriswitcher")
@@ -783,36 +680,73 @@ class NiriswitcherWindow(Gtk.Window):
         self.current_application = None
 
         key_controller = Gtk.EventControllerKey.new()
-        key_controller.connect("key-released", on_key_release, self)
-        key_controller.connect("key-pressed", on_press_key, self)
+        key_controller.connect("key-released", self.on_key_released)
+        key_controller.connect("key-pressed", self.on_key_pressed)
         self.add_controller(key_controller)
         self.connect("map", self.on_map)
         self.connect("show", self.on_show)
         self.connect("hide", self.on_hide)
 
-        self._actions = None
+        self.keybindings = self._create_keybindings()
+
+    def on_key_released(self, controller, keyval, keycode, state):
+        if keyval == config.keys.modifier:
+            self.focus_selected_window(hide=True)
+            return True
+        return False
+
+    def on_key_pressed(self, controller, keyval, keycode, state):
+        if keyval == Gdk.KEY_ISO_Left_Tab:
+            keyval = Gdk.KEY_Tab
+
+        keyval_name = Gdk.keyval_name(keyval)
+        if keyval_name and len(keyval_name) == 1 and keyval_name.isalpha():
+            keyval = Gdk.keyval_from_name(keyval_name.lower())
+
+        for keybinding in self.keybindings:
+            if keybinding.matches(keyval, state):
+                keybinding.execute()
+                break
+
+    def on_window_closed(self, window):
+        for workspace_view in self.workspace_stack:
+            is_removed, application = workspace_view.remove_application_by_window_id(
+                window.id
+            )
+            if is_removed:
+                if application is not None:
+                    self.select_application(application)
+                else:
+                    self.hide()
+                return
+
+    def on_workspace_activated(self, workspace):
+        if self.is_visible() and (
+            workspace_view := self.workspace_stack.get_child_by_name(
+                workspace.identifier
+            )
+        ):
+            self.current_workspace_name.set_label(workspace.identifier)
+            self.workspace_stack.set_visible_child(workspace_view)
+            self.workspace_indicators.select_by_workspace_id(workspace.id)
+            first_application = (
+                self.workspace_stack.get_visible_child().get_first_application_view()
+            )
+            if first_application is not None:
+                self.select_application(first_application)
+
+    def on_window_focus_changed(self, window):
+        workspace_view = self.workspace_stack.get_visible_child()
+        for application_view in workspace_view:
+            if application_view.window.id == window.id:
+                application_view.focus()
+                workspace_view.scroll_to(application_view)
+            else:
+                application_view.unfocus()
 
     def on_map(self, window):
         surface = self.get_surface()
         surface.inhibit_system_shortcuts(None)
-
-    def get_actions(self):
-        if self._actions is None:
-            self._actions = [
-                KeybindingAction(config.keys.next, self.select_next_application),
-                KeybindingAction(config.keys.prev, self.select_prev_application),
-                KeybindingAction(config.keys.abort, self.hide),
-                KeybindingAction(config.keys.close, self.close_selected_window),
-                KeybindingAction(
-                    config.keys.next_workspace, self.select_next_workspace
-                ),
-                KeybindingAction(
-                    config.keys.prev_workspace, self.select_prev_workspace
-                ),
-            ]
-            self._actions.sort(key=operator.attrgetter("mod_count"), reverse=True)
-
-        return self._actions
 
     def on_hide(self, widget):
         self.window_manager.disconnect("window-closed")
@@ -825,6 +759,43 @@ class NiriswitcherWindow(Gtk.Window):
             self.workspace_indicators.remove(child)
 
         self.current_application = None
+
+    def on_show(self, widget):
+        display = Gdk.Display.get_default()
+
+        workspace = self.window_manager.get_active_workspace()
+        if not any(
+            (monitor := m).get_connector() == workspace.output
+            for m in display.get_monitors()
+        ):
+            monitor = display.get_monitor_at_surface(self.get_surface())
+
+        LayerShell.set_monitor(self, monitor)
+        geometry = monitor.get_geometry()
+
+        max_size = int(geometry.width * 0.9)
+        if not config.general.active_workspace:
+            self._show_windows_from_all_workspaces(max_size)
+        else:
+            self._show_windows_from_active_workspace(max_size)
+
+    def _create_keybindings(self):
+        return sorted(
+            [
+                KeybindingAction(config.keys.next, self.select_next_application),
+                KeybindingAction(config.keys.prev, self.select_prev_application),
+                KeybindingAction(config.keys.abort, self.hide),
+                KeybindingAction(config.keys.close, self.close_selected_window),
+                KeybindingAction(
+                    config.keys.next_workspace, self.select_next_workspace
+                ),
+                KeybindingAction(
+                    config.keys.prev_workspace, self.select_prev_workspace
+                ),
+            ],
+            key=operator.attrgetter("mod_count"),
+            reverse=True,
+        )
 
     def _show_windows_from_all_workspaces(self, screen_width):
         windows = self.window_manager.get_windows(active_workspace=False)
@@ -841,11 +812,9 @@ class NiriswitcherWindow(Gtk.Window):
         init = self.workspace_stack.get_visible_child().get_initial_selection()
         if init is not None:
             self.select_application(init)
+            self.window_manager.connect("window-closed", self.on_window_closed)
             self.window_manager.connect(
-                "window-closed", on_window_closed, self.workspace_stack, self
-            )
-            self.window_manager.connect(
-                "window-focus-changed", on_window_focus_changed, self
+                "window-focus-changed", self.on_window_focus_changed
             )
 
     def _show_windows_from_active_workspace(self, screen_width):
@@ -886,36 +855,14 @@ class NiriswitcherWindow(Gtk.Window):
             init = self.workspace_stack.get_visible_child().get_initial_selection()
             if init is not None:
                 self.select_application(init)
-                self.window_manager.connect(
-                    "window-closed", on_window_closed, self.workspace_stack, self
-                )
+                self.window_manager.connect("window-closed", self.on_window_closed)
                 self.window_manager.connect(
                     "workspace-activated",
-                    on_workspace_activated,
-                    self,
+                    self.on_workspace_activated,
                 )
                 self.window_manager.connect(
-                    "window-focus-changed", on_window_focus_changed, self
+                    "window-focus-changed", self.on_window_focus_changed
                 )
-
-    def on_show(self, widget):
-        display = Gdk.Display.get_default()
-
-        workspace = self.window_manager.get_active_workspace()
-        if not any(
-            (monitor := m).get_connector() == workspace.output
-            for m in display.get_monitors()
-        ):
-            monitor = display.get_monitor_at_surface(self.get_surface())
-
-        LayerShell.set_monitor(self, monitor)
-        geometry = monitor.get_geometry()
-
-        max_size = int(geometry.width * 0.9)
-        if not config.general.active_workspace:
-            self._show_windows_from_all_workspaces(max_size)
-        else:
-            self._show_windows_from_active_workspace(max_size)
 
     def focus_selected_window(self, hide=True):
         self.focus_window(self.current_application, hide=hide)

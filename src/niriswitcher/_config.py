@@ -18,18 +18,18 @@ class GeneralConfig:
 @dataclass(frozen=True)
 class KeysConfig:
     modifier: int = Gdk.KEY_Alt_L
-    next: (int, int | None) = (Gdk.KEY_Tab, Gdk.ModifierType.ALT_MASK)
-    prev: (int, int | None) = (
+    next: (int, int) = (Gdk.KEY_Tab, Gdk.ModifierType.ALT_MASK)
+    prev: (int, int) = (
         Gdk.KEY_Tab,
         Gdk.ModifierType.ALT_MASK | Gdk.ModifierType.SHIFT_MASK,
     )
-    close: (int, int | None) = (Gdk.KEY_q, Gdk.ModifierType.ALT_MASK)
-    abort: (int, int | None) = (Gdk.KEY_Escape, Gdk.ModifierType.ALT_MASK)
+    close: (int, int) = (Gdk.KEY_q, Gdk.ModifierType.ALT_MASK)
+    abort: (int, int) = (Gdk.KEY_Escape, Gdk.ModifierType.ALT_MASK)
     next_workspace: (int, int | None) = (
         Gdk.KEY_grave,
         Gdk.ModifierType.ALT_MASK,
     )
-    prev_workspace: (int, int | None) = (
+    prev_workspace: (int, int) = (
         Gdk.KEY_asciitilde,
         Gdk.ModifierType.ALT_MASK | Gdk.ModifierType.SHIFT_MASK,
     )

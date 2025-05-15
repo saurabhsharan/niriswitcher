@@ -26,30 +26,6 @@ from gi.repository import Gtk4LayerShell as LayerShell
 from ._config import config
 
 
-def on_workspace_indicator_pressed(gesture, n_press, x, y, workspace_indicator, win):
-    """
-    Handles the event when a workspace indicator is pressed.
-
-    Args:
-        gesture: The gesture object triggering the event.
-        n_press (int): The number of presses detected.
-        x (float): The x-coordinate of the press event.
-        y (float): The y-coordinate of the press event.
-        workspace_indicator: The workspace indicator widget associated with the event.
-        win: The main application window.
-
-    Returns:
-        None
-    """
-    current_workspace_view = win.workspace_stack.get_visible_child()
-    if current_workspace_view.workspace.id != workspace_indicator.workspace.id:
-        win.select_workspace(
-            win.workspace_stack.get_child_by_name(
-                workspace_indicator.workspace.identifier
-            )
-        )
-
-
 class ApplicationView(Gtk.Box):
     """
     A custom GTK Box widget representing an application view with an icon and name label.
@@ -561,7 +537,7 @@ class WorkspaceView(Gtk.ScrolledWindow):
             current = current.get_next_sibling()
 
 
-class WorkspaceIndicatorView(Gtk.Box):
+class WorkspaceIndicatorChild(Gtk.Box):
     """
     A GTK Box widget that visually represents a workspace indicator.
 
@@ -576,37 +552,83 @@ class WorkspaceIndicatorView(Gtk.Box):
         width (int, optional): The width of the indicator. Defaults to 5.
     """
 
+    __gsignals__ = {
+        "pressed": (GObject.SignalFlags.RUN_FIRST, None, (Workspace,)),
+    }
+
     def __init__(self, workspace, width=5):
         super().__init__()
         self.workspace = workspace
         self.set_size_request(width, -1)
         self.add_css_class("workspace-indicator")
         self.set_vexpand(True)
+        gesture = Gtk.GestureClick.new()
+        gesture.set_button(0)
+        gesture.connect("pressed", self.on_pressed)
+        self.add_controller(gesture)
+
+    def on_pressed(self, gesture, n_press, x, y):
+        self.emit("pressed", self.workspace)
+
+    def select(self):
+        self.add_css_class("selected")
+
+    def deselect(self):
+        self.remove_css_class("selected")
 
 
-class WorkspaceIndicatorsView(Gtk.Box):
-    """
-    A GTK Box-based view for displaying and managing workspace indicators.
+class WorkspaceIndicator(Gtk.Box):
+    __gsignals__ = {
+        "selection-changed": (GObject.SignalFlags.RUN_FIRST, None, (Workspace, bool))
+    }
 
-    This class arranges workspace indicators vertically and provides methods
-    to select an indicator by workspace ID and to iterate over all indicator widgets.
-
-    Attributes:
-        None
-    """
-
-    def __init__(self):
+    def __init__(self, width=5):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.width = width
         self.set_halign(Gtk.Align.START)
         self.set_vexpand(True)
         self.set_name("workspace-indicators")
+        self.current = None
 
-    def select_by_workspace_id(self, workspace_id):
+    def append_workspace(self, workspace: Workspace):
+        workspace_indicator = WorkspaceIndicatorChild(workspace, self.width)
+        workspace_indicator.connect("pressed", self.on_pressed)
+        self.append(workspace_indicator)
+
+    def on_pressed(self, widget, workspace):
+        self.select_by_workspace_id(workspace.id)
+        self.emit("selection-changed", workspace, None)
+
+    def select_by_workspace_id(self, workspace_id, animate=True):
         for current in self:
             if current.workspace.id == workspace_id:
-                current.add_css_class("selected")
-            else:
-                current.remove_css_class("selected")
+                self.select(current, animate=animate)
+                break
+
+    def select(self, indicator, animate=True):
+        if indicator is None:
+            return
+
+        if self.current is not None:
+            self.current.deselect()
+
+        self.current = indicator
+        self.current.select()
+        self.emit("selection-changed", self.current.workspace, animate)
+
+    def select_next(self):
+        next = self.current.get_next_sibling()
+        if next is None:
+            next = self.get_first_child()
+
+        self.select(next)
+
+    def select_prev(self):
+        prev = self.current.get_prev_sibling()
+        if prev is None:
+            prev = self.get_last_child()
+
+        self.select(prev)
 
     def __iter__(self):
         current = self.get_first_child()
@@ -616,10 +638,6 @@ class WorkspaceIndicatorsView(Gtk.Box):
 
 
 class WorkspaceStack(Gtk.Stack):
-    __gsignals__ = {
-        "selection-changed": (GObject.SignalFlags.RUN_FIRST, None, (Workspace,)),
-    }
-
     def __init__(self):
         super().__init__()
         self.set_name("workspaces")
@@ -628,25 +646,32 @@ class WorkspaceStack(Gtk.Stack):
         self.set_interpolate_size(True)
         self.set_halign(Gtk.Align.CENTER)
 
-    def select(self, workspace_view):
+        self.indicator: WorkspaceIndicator = None
+
+    def set_indicator(self, indicator):
+        for indicator_child in list(indicator):
+            indicator.remove(indicator_child)
+        for workspace_view in list(self):
+            indicator.append_workspace(workspace_view.workspace)
+
+        self.indicator = indicator
+        self.indicator.connect("selection-changed", self.on_selection_changed)
+
+    def add_workspace(self, workspace_view):
+        if self.indicator:
+            self.indicator.append_workspace(workspace_view.workspace)
+        self.add_named(workspace_view, workspace_view.workspace.identifier)
+
+    def on_selection_changed(self, widget, workspace, animate):
+        workspace_view = self.get_child_by_name(workspace.identifier)
         if workspace_view is not None:
-            self.set_visible_child(workspace_view)
+            if animate:
+                self.set_visible_child(workspace_view)
+            else:
+                self.set_visible_child_full(
+                    workspace.identifier, Gtk.StackTransitionType.NONE
+                )
             workspace_view.select_current()
-            self.emit("selection-changed", workspace_view.workspace)
-
-    def select_next(self):
-        current = self.get_visible_child()
-        next = current.get_next_sibling()
-        if next is None:
-            next = self.get_first_child()
-        self.select(next)
-
-    def select_prev(self):
-        current = self.get_visible_child()
-        prev = current.get_prev_sibling()
-        if prev is None:
-            prev = self.get_last_child()
-        self.select(prev)
 
 
 class NiriswitcherWindow(Gtk.Window):
@@ -695,9 +720,6 @@ class NiriswitcherWindow(Gtk.Window):
         self.current_workspace_name.set_name("workspace-name")
 
         self.workspace_stack = WorkspaceStack()
-        self.workspace_stack.connect(
-            "selection-changed", self.on_workspace_selection_changed
-        )
 
         top_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
         top_bar.append(self.current_application_title)
@@ -711,10 +733,15 @@ class NiriswitcherWindow(Gtk.Window):
         main_view.append(top_bar)
         main_view.append(self.workspace_stack)
 
-        self.workspace_indicators = WorkspaceIndicatorsView()
+        self.workspace_indicator = WorkspaceIndicator()
+        self.workspace_indicator.connect(
+            "selection-changed", self.on_workspace_selection_changed
+        )
+
+        self.workspace_stack.set_indicator(self.workspace_indicator)
 
         inner_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        inner_box.append(self.workspace_indicators)
+        inner_box.append(self.workspace_indicator)
         inner_box.append(main_view)
 
         self.set_child(inner_box)
@@ -761,16 +788,11 @@ class NiriswitcherWindow(Gtk.Window):
                 return
 
     def on_workspace_activated(self, workspace):
-        if self.is_visible() and (
-            workspace_view := self.workspace_stack.get_child_by_name(
-                workspace.identifier
-            )
-        ):
-            self.select_workspace(workspace_view)
+        if self.is_visible():
+            self.workspace_indicator.select_by_workspace_id(workspace.id)
 
-    def on_workspace_selection_changed(self, widget, workspace):
+    def on_workspace_selection_changed(self, widget, workspace, animate):
         self.current_workspace_name.set_label(workspace.identifier)
-        self.workspace_indicators.select_by_workspace_id(workspace.id)
 
     def on_window_focus_changed(self, window):
         workspace_view = self.workspace_stack.get_visible_child()
@@ -803,8 +825,8 @@ class NiriswitcherWindow(Gtk.Window):
         for child in list(self.workspace_stack):
             self.workspace_stack.remove(child)
 
-        for child in list(self.workspace_indicators):
-            self.workspace_indicators.remove(child)
+        for child in list(self.workspace_indicator):
+            self.workspace_indicator.remove(child)
 
         self.current_application = None
 
@@ -853,17 +875,22 @@ class NiriswitcherWindow(Gtk.Window):
             max_size=min(config.general.max_width, screen_width),
             icon_size=config.general.icon_size,
         )
-        self.workspace_indicators.set_visible(False)
+        workspace_view.connect("focus-requested", self.on_focus_requested)
+        workspace_view.connect("close-requested", self.on_close_requested)
+        workspace_view.connect(
+            "selection-changed", self.on_application_selection_changed
+        )
+        self.workspace_indicator.set_visible(False)
         self.current_workspace_name.set_visible(False)
         self.workspace_stack.add_named(workspace_view, "all")
-        if not workspace_view.is_empty():
-            self.window_manager.connect("window-closed", self.on_window_closed)
-            self.window_manager.connect(
-                "window-focus-changed", self.on_window_focus_changed
-            )
+        workspace_view.select_current()
+        self.window_manager.connect("window-closed", self.on_window_closed)
+        self.window_manager.connect(
+            "window-focus-changed", self.on_window_focus_changed
+        )
 
     def _show_windows_from_active_workspace(self, screen_width):
-        self.workspace_indicators.set_visible(True)
+        self.workspace_indicator.set_visible(True)
         self.current_workspace_name.set_visible(True)
         for workspace in self.window_manager.get_workspaces():
             windows = self.window_manager.get_windows(workspace_id=workspace.id)
@@ -879,39 +906,20 @@ class NiriswitcherWindow(Gtk.Window):
                 )
                 workspace_view.connect("focus-requested", self.on_focus_requested)
                 workspace_view.connect("close-requested", self.on_close_requested)
-                self.workspace_stack.add_named(workspace_view, workspace.identifier)
-                workspace_indicator = WorkspaceIndicatorView(workspace)
-                gesture = Gtk.GestureClick.new()
-                gesture.set_button(0)
-                gesture.connect(
-                    "pressed", on_workspace_indicator_pressed, workspace_indicator, self
-                )
-                workspace_indicator.add_controller(gesture)
-
-                self.workspace_indicators.append(workspace_indicator)
+                self.workspace_stack.add_workspace(workspace_view)
 
         active_workspace = self.window_manager.get_active_workspace()
-        workspace_view = self.workspace_stack.get_child_by_name(
-            active_workspace.identifier
+        self.workspace_indicator.select_by_workspace_id(
+            active_workspace.id, animate=False
         )
-        if workspace_view is not None:
-            self.current_workspace_name.set_label(active_workspace.identifier)
-            self.workspace_stack.set_visible_child_full(
-                active_workspace.identifier, Gtk.StackTransitionType.NONE
-            )
-            self.workspace_indicators.select_by_workspace_id(active_workspace.id)
-
-            active_workspace_view = self.workspace_stack.get_visible_child()
-            if not active_workspace_view.is_empty():
-                active_workspace_view.select_current()
-                self.window_manager.connect("window-closed", self.on_window_closed)
-                self.window_manager.connect(
-                    "workspace-activated",
-                    self.on_workspace_activated,
-                )
-                self.window_manager.connect(
-                    "window-focus-changed", self.on_window_focus_changed
-                )
+        self.window_manager.connect("window-closed", self.on_window_closed)
+        self.window_manager.connect(
+            "workspace-activated",
+            self.on_workspace_activated,
+        )
+        self.window_manager.connect(
+            "window-focus-changed", self.on_window_focus_changed
+        )
 
     def focus_selected_window(self):
         workspace_view = self.workspace_stack.get_visible_child()
@@ -933,13 +941,13 @@ class NiriswitcherWindow(Gtk.Window):
         if not config.general.active_workspace:
             return
 
-        self.workspace_stack.select_next()
+        self.workspace_indicator.select_next()
 
     def select_prev_workspace(self):
         if not config.general.active_workspace:
             return
 
-        self.workspace_stack.select_prev()
+        self.workspace_indicator.select_prev()
 
 
 class NiriswicherApp(Gtk.Application):

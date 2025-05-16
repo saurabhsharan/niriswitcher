@@ -1,4 +1,4 @@
-%define version 0.3.2
+%define version 0.3.3
 
 Name:           niriswitcher
 Version:        %{version}
@@ -68,3 +68,6 @@ currently active output.
 
 * Fri May 16 2025 Isak Samsten <isak@samsten.se> - 0.3.2-1
 - Fix debug colors in default css
+
+* Fri May 16 2025 Isak Samsten <isak@samsten.se> - 0.3.3-1
+- Fix debug colors in default css (another)

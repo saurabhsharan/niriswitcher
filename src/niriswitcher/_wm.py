@@ -209,6 +209,9 @@ class NiriWindowManager:
     def get_n_windows(self, active_workspace=True):
         self._windows_loaded.wait()
         with self.lock:
+            if not active_workspace:
+                return len(self.windows)
+
             return len(
                 [
                     window

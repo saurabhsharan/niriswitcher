@@ -1,4 +1,4 @@
-%define version 0.3.0
+%define version 0.3.1
 
 Name:           niriswitcher
 Version:        %{version}
@@ -62,3 +62,6 @@ currently active output.
 - Add configurable animation duration
 - Add configurable min_width
 - Fix a division by zero bug in GenericTransition
+
+* Fri May 16 2025 Isak Samsten <isak@samsten.se> - 0.2.0-1
+- Fix not opening on workspaces with no windows when separate_workspaces=false

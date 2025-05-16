@@ -5,6 +5,13 @@ import tomllib
 from gi.repository import Gtk, Gdk
 from dataclasses import dataclass
 
+from ._anim import (
+    get_easing_function,
+    get_transition_function,
+    ease_out_cubic,
+    ease_in_out_cubic,
+)
+
 
 @dataclass(frozen=True)
 class GeneralConfig:
@@ -35,25 +42,25 @@ class KeysConfig:
 @dataclass(frozen=True)
 class ResizeAnimationConfig:
     duration: int = 200
-    easing: str = "ease-out"
+    easing: callable = ease_out_cubic
 
 
 @dataclass(frozen=True)
 class SwitchAnimationConfig:
     duration: int = 200
-    easing: str = "ease-in-out"
+    easing: callable = ease_in_out_cubic
 
 
 @dataclass(frozen=True)
 class WorkspaceAnimationConfig:
     duration: int = 200
-    transition: str = "slide"
+    transition: Gtk.StackTransitionType = Gtk.StackTransitionType.SLIDE_UP_DOWN
 
 
 @dataclass(frozen=True)
 class HideAnimationConfig:
     duration: int = 200
-    transition: str = "ease-out"
+    easing: callable = ease_out_cubic
 
 
 @dataclass(frozen=True)
@@ -242,15 +249,21 @@ def load_configuration(config_path=None):
 
     resize_animation = ResizeAnimationConfig(
         duration=resize_section.get("duration", 200),
+        easing=get_easing_function(resize_section.get("easing", "ease-out-cubic")),
     )
     switch_animation = SwitchAnimationConfig(
         duration=switch_section.get("duration", 200),
+        easing=get_easing_function(switch_section.get("easing", "ease-in-out-cubic")),
     )
     workspace_animation = WorkspaceAnimationConfig(
         duration=workspace_section.get("duration", 200),
+        transition=get_transition_function(
+            workspace_section.get("transition", "slide")
+        ),
     )
     hide_animation = HideAnimationConfig(
         duration=hide_section.get("duration", 200),
+        easing=get_easing_function(hide_section.get("easing", "ease-out-cubic")),
     )
     animation = AnimationConfig(
         resize=resize_animation,

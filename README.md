@@ -92,12 +92,29 @@ The configuration file is a simple `.toml`-file in
 `$XDG_CONFIG_HOME/niriswitcher/config.toml`. This is the default config:
 
 ```toml
-[general]
+separate_workspaces = true
+double_click_to_hide = false
+
+[appearance]
 icon_size = 128
 max_width = 800
-separate_workspaces = true
-scroll_animation_duration = 200
-double_click_to_hide = false
+min_width = 600
+
+[appearance.animation.hide]
+duration = 200
+easing = "ease-out-cubic"
+
+[appearance.animation.resize]
+duration = 200
+easing = "ease-in-out-cubic"
+
+[appearance.animation.workspace]
+duration = 200
+transition = "slide"
+
+[appearance.animation.switch]
+duration = 200
+easing = "ease-out-cubic"
 
 [keys]
 modifier = "Alt_L"
@@ -112,7 +129,7 @@ abort = "Escape"
 
 [keys.workspace]
 next = "grave"
-prev = "Shift+asciitilde" # shift+grave
+prev = "Shift+asciitilde"
 ```
 
 The `modifier` key keeps `niriswitcher` active (once released, `niriswitcher`

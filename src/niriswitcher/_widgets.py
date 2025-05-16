@@ -163,11 +163,17 @@ class AnimateScrollToWidget:
 
     """
 
-    def __init__(self, scrolled_window):
+    def __init__(self, scrolled_window, *, duration=200, easing=None):
         self.scrolled_window = scrolled_window
         self._timer_id = None
+        self.duration = duration
+        self.easing = easing
 
-    def __call__(self, widget, duration=200):
+    def __call__(self, widget):
+        easing = self.easing
+        if easing is None:
+            easing = ease_in_out_cubic
+
         def animate_scroll_to_application():
             hadj = self.scrolled_window.get_hadjustment()
             child_x = widget.get_allocation().x
@@ -185,7 +191,7 @@ class AnimateScrollToWidget:
                 min(new_value, hadj.get_upper() - hadj.get_page_size()),
             )
 
-            if duration == 0:
+            if self.duration == 0:
                 hadj.set_value(new_value)
                 self._timer_id = None
                 return
@@ -196,8 +202,8 @@ class AnimateScrollToWidget:
 
             def animate_scroll():
                 elapsed = (time.monotonic() - start_time) * 1000
-                t = min(elapsed / duration, 1.0)
-                eased_t = ease_in_out_cubic(t)
+                t = min(elapsed / self.duration, 1.0)
+                eased_t = easing(t)
                 current_value = start_value + delta * eased_t
                 hadj.set_value(current_value)
                 if t < 1.0:
@@ -239,7 +245,9 @@ class GenericTransition:
 
     """
 
-    def __init__(self, method, *, before, setter, initial, target, duration=200):
+    def __init__(
+        self, method, *, before, setter, initial, target, duration=200, easing=None
+    ):
         self._timer_id = None
         self.initial = initial
         self.target = target
@@ -248,9 +256,13 @@ class GenericTransition:
         self.setter = setter
         self.before = before
         self.duration = duration
+        self.easing = easing
 
     def __call__(self, *args, **kwargs):
         self._current = self.initial
+        easing = self.easing
+        if easing is None:
+            easing = ease_out_cubic
 
         if self.duration == 0:
             self.setter(self.target)
@@ -268,7 +280,7 @@ class GenericTransition:
             def do_animation():
                 elapsed = (time.monotonic() - start_time) * 1000
                 t = min(elapsed / self.duration, 1.0)
-                eased_t = ease_out_cubic(t)
+                eased_t = easing(t)
                 self._current = self.initial + delta * eased_t
                 if t < 1.0:
                     self.setter(self._current)
@@ -306,15 +318,20 @@ class SizeTransition:
         transition(initial_size=100, target_size=200, duration=300)
     """
 
-    def __init__(self, widget):
+    def __init__(self, widget, *, duration=200, easing=None):
         self._timer_id = None
         self.current_size = None
         self.widget = widget
+        self.duration = duration
+        self.easing = easing
 
-    def __call__(self, initial_size, target_size, duration=200):
+    def __call__(self, initial_size, target_size):
         self.current_size = initial_size
+        easing = self.easing
+        if easing is None:
+            easing = ease_out_cubic
 
-        if duration == 0:
+        if self.duration == 0:
             self.current_size = target_size
             return
 
@@ -324,8 +341,8 @@ class SizeTransition:
 
             def do_animation():
                 elapsed = (time.monotonic() - start_time) * 1000
-                t = min(elapsed / duration, 1.0)
-                eased_t = ease_out_cubic(t)
+                t = min(elapsed / self.duration, 1.0)
+                eased_t = easing(t)
                 self.current_size = initial_size + delta * eased_t
                 if t < 1.0:
                     self.widget.queue_resize()
@@ -381,6 +398,8 @@ class WorkspaceView(Gtk.ScrolledWindow):
         self.current_application = self.get_initial_selection()
         self.scroll_duration = 200
         self.resize_duration = 200
+        self.resize_easing = None
+        self.scroll_easing = None
 
     def on_released(self, widget, gesture, n_press, window):
         hide = True
@@ -415,10 +434,16 @@ class WorkspaceView(Gtk.ScrolledWindow):
         return self.application_views.get_first_child() is None
 
     def set_scroll_duration(self, scroll_duration):
-        self.scroll_duration = scroll_duration
+        self.scroll_to.duration = scroll_duration
 
     def set_resize_duration(self, resize_duration):
-        self.resize_duration = resize_duration
+        self.size_transition.duration = resize_duration
+
+    def set_resize_easing(self, easing):
+        self.size_transition.easing = easing
+
+    def set_scroll_easing(self, easing):
+        self.scroll_to.easing = easing
 
     def get_initial_selection(self):
         first = self.get_first_application_view()
@@ -448,7 +473,7 @@ class WorkspaceView(Gtk.ScrolledWindow):
 
         self.current_application = application
         self.current_application.select()
-        self.scroll_to(self.current_application, duration=self.scroll_duration)
+        self.scroll_to(self.current_application)
         self.emit("selection-changed", self.current_application.window)
 
     def select_next(self):
@@ -482,7 +507,6 @@ class WorkspaceView(Gtk.ScrolledWindow):
         self.size_transition(
             max(self.min_width, min(self.max_width, before.natural)),
             max(self.min_width, min(self.max_width, after.natural)),
-            duration=self.resize_duration,
         )
 
     def do_measure(self, orientation, for_size):

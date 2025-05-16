@@ -8,9 +8,6 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class GeneralConfig:
-    icon_size: int = 128
-    scroll_animaton_duration: int = 500
-    max_width: int = 800
     separate_workspaces: bool = True
     double_click_to_hide: bool = False
 
@@ -35,6 +32,11 @@ class KeysConfig:
     )
 
 
+@dataclass
+class AppearanceConfig:
+    icon_size: int = 128
+    max_width: int = 800
+    min_width: int = 600
 @dataclass(frozen=True)
 class Config:
     general: GeneralConfig
@@ -159,17 +161,10 @@ def load_configuration(config_path=None):
     else:
         config = {}
 
-    general_section = config.get("general", {})
-    icon_size = general_section.get("icon_size", 128)
-    max_width = general_section.get("max_width", 800)
-    separate_workspaces = general_section.get("separate_workspaces", True)
-    scroll_animation_duration = general_section.get("scroll_animation_duration", 200)
-    double_click_to_hide = general_section.get("double_click_to_hide", False)
+    separate_workspaces = config.get("separate_workspaces", True)
+    double_click_to_hide = config.get("double_click_to_hide", False)
     general = GeneralConfig(
-        icon_size=icon_size,
-        max_width=max_width,
         separate_workspaces=separate_workspaces,
-        scroll_animaton_duration=scroll_animation_duration,
         double_click_to_hide=double_click_to_hide,
     )
 
@@ -198,7 +193,18 @@ def load_configuration(config_path=None):
         prev_workspace=parse_accelerator_key(prev_workspace_key, modifier_mask),
     )
 
-    return Config(general=general, keys=keys)
+    appearance_section = config.get("appearance", {})
+    appearance_icon_size = appearance_section.get("icon_size", 128)
+    appearance_max_width = appearance_section.get("max_width", 800)
+    appearance_min_width = appearance_section.get("min_width", 600)
+
+    appearance = AppearanceConfig(
+        icon_size=appearance_icon_size,
+        max_width=appearance_max_width,
+        min_width=appearance_min_width,
+    )
+
+    return Config(general=general, keys=keys, appearance=appearance)
 
 
 def load_and_initialize_styles(filename="style.css"):

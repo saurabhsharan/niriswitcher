@@ -89,6 +89,7 @@ class NiriswitcherWindow(Gtk.Window):
 
         self.workspace_stack = WorkspaceStack()
         self.workspace_stack.set_halign(Gtk.Align.CENTER)
+        self.workspace_stack.set_size_request(config.appearance.min_width, -1)
 
         top_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
         left_dummy = Gtk.Label()

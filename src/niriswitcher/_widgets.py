@@ -351,7 +351,9 @@ class WorkspaceView(Gtk.ScrolledWindow):
         "close-requested": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
     }
 
-    def __init__(self, workspace, windows, max_size=800, icon_size=128):
+    def __init__(
+        self, workspace, windows, *, min_width=600, max_width=800, icon_size=128
+    ):
         super().__init__()
         self.application_views = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=12
@@ -372,7 +374,8 @@ class WorkspaceView(Gtk.ScrolledWindow):
             application_view.connect("released", self.on_released)
             self.application_views.append(application_view)
 
-        self.max_size = max_size
+        self.max_width = max_width
+        self.min_width = min_width
         self.size_transition = SizeTransition(self)
         self.scroll_to = AnimateScrollToWidget(self)
         self.current_application = self.get_initial_selection()
@@ -469,7 +472,8 @@ class WorkspaceView(Gtk.ScrolledWindow):
         self.application_views.remove(application)
         after = self.application_views.measure(Gtk.Orientation.HORIZONTAL, -1)
         self.size_transition(
-            min(self.max_size, before.natural), min(self.max_size, after.natural)
+            max(self.min_width, min(self.max_width, before.natural)),
+            max(self.min_width, min(self.max_width, after.natural)),
         )
 
     def do_measure(self, orientation, for_size):
@@ -477,8 +481,8 @@ class WorkspaceView(Gtk.ScrolledWindow):
         min_size = measure.minimum
         nat_size = measure.natural
         if orientation == Gtk.Orientation.HORIZONTAL:
-            min_size = min(self.max_size, min_size)
-            nat_size = min(self.max_size, nat_size)
+            min_size = min(self.max_width, min_size)
+            nat_size = min(self.max_width, nat_size)
             if self.size_transition.current_size is not None:
                 nat_size = self.size_transition.current_size
 

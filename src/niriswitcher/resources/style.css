@@ -91,11 +91,12 @@
 .application-name {
   transition: all 0.2s ease;
   opacity: 0;
-  /* color: white; */
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .application.selected .application-name {
   opacity: 1;
+  color: rgba(255, 255, 255, 1);
 }
 
 .application.focused .application-name {

@@ -1,4 +1,4 @@
-%define version 0.3.1
+%define version 0.3.2
 
 Name:           niriswitcher
 Version:        %{version}
@@ -56,12 +56,15 @@ section is present in the configuration file
 - Enable support for multiple monitors showing the switcher on the
 currently active output.
 
-* Fri May 16 2025 Isak Samsten <isak@samsten.se> - 0.2.0-1
+* Fri May 16 2025 Isak Samsten <isak@samsten.se> - 0.3.0-1
 - Change configuration format from .ini to .toml
 - Add configurable easing and transitions for animations
 - Add configurable animation duration
 - Add configurable min_width
 - Fix a division by zero bug in GenericTransition
 
-* Fri May 16 2025 Isak Samsten <isak@samsten.se> - 0.2.0-1
+* Fri May 16 2025 Isak Samsten <isak@samsten.se> - 0.3.1-1
 - Fix not opening on workspaces with no windows when separate_workspaces=false
+
+* Fri May 16 2025 Isak Samsten <isak@samsten.se> - 0.3.2-1
+- Fix debug colors in default css

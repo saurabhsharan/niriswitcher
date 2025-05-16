@@ -32,15 +32,51 @@ class KeysConfig:
     )
 
 
+@dataclass(frozen=True)
+class ResizeAnimationConfig:
+    duration: int = 200
+    easing: str = "ease-out"
+
+
+@dataclass(frozen=True)
+class SwitchAnimationConfig:
+    duration: int = 200
+    easing: str = "ease-in-out"
+
+
+@dataclass(frozen=True)
+class WorkspaceAnimationConfig:
+    duration: int = 200
+    transition: str = "slide"
+
+
+@dataclass(frozen=True)
+class HideAnimationConfig:
+    duration: int = 200
+    transition: str = "ease-out"
+
+
+@dataclass(frozen=True)
+class AnimationConfig:
+    resize: ResizeAnimationConfig = ResizeAnimationConfig()
+    switch: SwitchAnimationConfig = SwitchAnimationConfig()
+    workspace: WorkspaceAnimationConfig = WorkspaceAnimationConfig()
+    hide: HideAnimationConfig = HideAnimationConfig()
+
+
 @dataclass
 class AppearanceConfig:
     icon_size: int = 128
     max_width: int = 800
     min_width: int = 600
+    animation: AnimationConfig = AnimationConfig()
+
+
 @dataclass(frozen=True)
 class Config:
     general: GeneralConfig
     keys: KeysConfig
+    appearance: AppearanceConfig
 
 
 def get_modifier_as_mask(modifier):
@@ -198,10 +234,36 @@ def load_configuration(config_path=None):
     appearance_max_width = appearance_section.get("max_width", 800)
     appearance_min_width = appearance_section.get("min_width", 600)
 
+    animation_section = appearance_section.get("animation", {})
+    resize_section = animation_section.get("resize", {})
+    switch_section = animation_section.get("switch", {})
+    workspace_section = animation_section.get("workspace", {})
+    hide_section = animation_section.get("hide", {})
+
+    resize_animation = ResizeAnimationConfig(
+        duration=resize_section.get("duration", 200),
+    )
+    switch_animation = SwitchAnimationConfig(
+        duration=switch_section.get("duration", 200),
+    )
+    workspace_animation = WorkspaceAnimationConfig(
+        duration=workspace_section.get("duration", 200),
+    )
+    hide_animation = HideAnimationConfig(
+        duration=hide_section.get("duration", 200),
+    )
+    animation = AnimationConfig(
+        resize=resize_animation,
+        switch=switch_animation,
+        workspace=workspace_animation,
+        hide=hide_animation,
+    )
+
     appearance = AppearanceConfig(
         icon_size=appearance_icon_size,
         max_width=appearance_max_width,
         min_width=appearance_min_width,
+        animation=animation,
     )
 
     return Config(general=general, keys=keys, appearance=appearance)

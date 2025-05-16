@@ -379,6 +379,8 @@ class WorkspaceView(Gtk.ScrolledWindow):
         self.size_transition = SizeTransition(self)
         self.scroll_to = AnimateScrollToWidget(self)
         self.current_application = self.get_initial_selection()
+        self.scroll_duration = 200
+        self.resize_duration = 200
 
     def on_released(self, widget, gesture, n_press, window):
         hide = True
@@ -412,6 +414,12 @@ class WorkspaceView(Gtk.ScrolledWindow):
     def is_empty(self):
         return self.application_views.get_first_child() is None
 
+    def set_scroll_duration(self, scroll_duration):
+        self.scroll_duration = scroll_duration
+
+    def set_resize_duration(self, resize_duration):
+        self.resize_duration = resize_duration
+
     def get_initial_selection(self):
         first = self.get_first_application_view()
         second = first.get_next_sibling()
@@ -440,7 +448,7 @@ class WorkspaceView(Gtk.ScrolledWindow):
 
         self.current_application = application
         self.current_application.select()
-        self.scroll_to(self.current_application)
+        self.scroll_to(self.current_application, duration=self.scroll_duration)
         self.emit("selection-changed", self.current_application.window)
 
     def select_next(self):
@@ -474,6 +482,7 @@ class WorkspaceView(Gtk.ScrolledWindow):
         self.size_transition(
             max(self.min_width, min(self.max_width, before.natural)),
             max(self.min_width, min(self.max_width, after.natural)),
+            duration=self.resize_duration,
         )
 
     def do_measure(self, orientation, for_size):

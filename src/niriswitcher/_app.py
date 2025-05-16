@@ -56,7 +56,7 @@ class NiriswitcherWindow(Gtk.Window):
             setter=self.set_opacity,
             initial=0,
             target=1,
-            duration=200,
+            duration=config.appearance.animation.hide.duration,
         )
         self.present = GenericTransition(
             self.present,
@@ -64,7 +64,7 @@ class NiriswitcherWindow(Gtk.Window):
             setter=self.set_opacity,
             initial=0,
             target=1,
-            duration=200,
+            duration=config.appearance.animation.hide.duration,
         )
         self.hide = GenericTransition(
             self.hide,
@@ -72,7 +72,7 @@ class NiriswitcherWindow(Gtk.Window):
             setter=self.set_opacity,
             initial=1,
             target=0,
-            duration=200,
+            duration=config.appearance.animation.hide.duration,
         )
 
         self.current_application_title = Gtk.Label()
@@ -90,6 +90,9 @@ class NiriswitcherWindow(Gtk.Window):
         self.workspace_stack = WorkspaceStack()
         self.workspace_stack.set_halign(Gtk.Align.CENTER)
         self.workspace_stack.set_size_request(config.appearance.min_width, -1)
+        self.workspace_stack.set_transition_duration(
+            config.appearance.animation.workspace.duration
+        )
 
         top_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
         left_dummy = Gtk.Label()
@@ -248,9 +251,12 @@ class NiriswitcherWindow(Gtk.Window):
         workspace_view = WorkspaceView(
             None,
             windows,
-            max_size=min(config.general.max_width, screen_width),
-            icon_size=config.general.icon_size,
+            min_width=min(config.appearance.min_width, screen_width),
+            max_width=min(config.appearance.max_width, screen_width),
+            icon_size=config.appearance.icon_size,
         )
+        workspace_view.set_scroll_duration(config.appearance.animation.switch.duration)
+        workspace_view.set_resize_duration(config.appearance.animation.resize.duration)
         workspace_view.connect("focus-requested", self.on_focus_requested)
         workspace_view.connect("close-requested", self.on_close_requested)
         workspace_view.connect(
@@ -274,8 +280,15 @@ class NiriswitcherWindow(Gtk.Window):
                 workspace_view = WorkspaceView(
                     workspace,
                     windows,
-                    min(config.general.max_width, screen_width),
-                    config.general.icon_size,
+                    min_width=min(config.appearance.min_width, screen_width),
+                    max_width=min(config.appearance.max_width, screen_width),
+                    icon_size=config.appearance.icon_size,
+                )
+                workspace_view.set_scroll_duration(
+                    config.appearance.animation.switch.duration
+                )
+                workspace_view.set_resize_duration(
+                    config.appearance.animation.resize.duration
                 )
                 workspace_view.connect(
                     "selection-changed", self.on_application_selection_changed

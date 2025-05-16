@@ -1,4 +1,4 @@
-%define version 0.2.0
+%define version 0.3.0
 
 Name:           niriswitcher
 Version:        %{version}
@@ -55,3 +55,10 @@ section is present in the configuration file
 - Smooth animations when showing/hiding the switcher
 - Enable support for multiple monitors showing the switcher on the
 currently active output.
+
+* Fri May 16 2025 Isak Samsten <isak@samsten.se> - 0.2.0-1
+- Change configuration format from .ini to .toml
+- Add configurable easing and transitions for animations
+- Add configurable animation duration
+- Add configurable min_width
+- Fix a division by zero bug in GenericTransition

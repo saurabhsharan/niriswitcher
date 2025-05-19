@@ -33,6 +33,12 @@ class Window(GObject.Object):
     def name(self):
         return self.app_info.get_name() if self.app_info is not None else self.app_id
 
+    def update(self, new):
+        self.title = new["title"]
+        self.last_focus_time = time.time()
+        self.workspace_id = new["workspace_id"]
+
+
 
 class Workspace(GObject.Object):
     id = GObject.Property(type=int)
@@ -61,6 +67,14 @@ class Workspace(GObject.Object):
                 last_focus_time if last_focus_time is not None else time.time()
             ),
         )
+
+    def update(self, new):
+        self.last_focus_time = time.time()
+        self.output = new["output"]
+        self.is_active = new["is_active"]
+        self.is_focused = new["is_focused"]
+        self.name = new["name"]
+        self.idx = new["idx"]
 
 
 def get_app_info(app_id):
@@ -177,7 +191,10 @@ class NiriWindowManager:
                 with self.lock:
                     window = opened_or_changed["window"]
                     window_id = window["id"]
-                    self.windows[window_id] = Window(window)
+                    if exists := self.windows.get(window_id):
+                        exists.update(window)
+                    else:
+                        self.windows[window_id] = Window(window)
             elif workspace_window := obj.get("WorkspaceActiveWindowChanged"):
                 workspace_id = workspace_window["workspace_id"]
                 with self.lock:

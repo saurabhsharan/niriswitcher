@@ -189,7 +189,8 @@ class NiriswitcherWindow(Gtk.Window):
                 application_view.unfocus()
 
     def on_application_selection_changed(self, widget, window):
-        self.current_application_title.set_label(window.title)
+        title = window.title if window.title is not None else ""
+        self.current_application_title.set_label(title)
 
     def on_close_requested(self, widget, window):
         self.window_manager.close_window(window.id)

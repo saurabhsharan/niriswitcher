@@ -41,7 +41,8 @@ class ApplicationView(Gtk.Box):
         name.set_ellipsize(Pango.EllipsizeMode.END)
         name.set_max_width_chars(1)
         name.set_hexpand(True)
-        name.set_label(self.window.name)
+        if self.window.name:
+            name.set_label(self.window.name)
 
         self.append(icon)
         self.append(name)

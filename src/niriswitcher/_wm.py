@@ -18,11 +18,12 @@ class Window(GObject.Object):
     last_focus_time = GObject.Property(type=float)
 
     def __init__(self, window, last_focus_time=None):
+        app_id = window["app_id"]
         super().__init__(
             id=window["id"],
             workspace_id=window["workspace_id"],
-            app_id=window["app_id"],
-            app_info=get_app_info(window["app_id"]),
+            app_id=app_id,
+            app_info=get_app_info(app_id) if app_id is not None else None,
             title=window["title"],
             last_focus_time=(
                 last_focus_time if last_focus_time is not None else time.time()
@@ -31,7 +32,10 @@ class Window(GObject.Object):
 
     @property
     def name(self):
-        return self.app_info.get_name() if self.app_info is not None else self.app_id
+        if self.app_info is not None:
+            return self.app_info.get_name()
+        else:
+            return self.app_id if self.app_id is not None else "Unknown"
 
     def update(self, new):
         self.title = new["title"]
@@ -51,7 +55,10 @@ class Workspace(GObject.Object):
 
     @GObject.Property(type=str)
     def identifier(self):
-        return f"{self.output}-{self.idx}"
+        if self.output is not None:
+            return f"{self.output}-{self.idx}"
+        else:
+            return str(self.idx)
 
     def __init__(self, workspace, last_focus_time=None):
         super().__init__(

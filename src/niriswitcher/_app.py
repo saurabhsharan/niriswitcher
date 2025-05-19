@@ -45,10 +45,10 @@ class KeybindingAction:
 
 
 class NiriswitcherWindow(Gtk.Window):
-    def __init__(self, app):
+    def __init__(self, app, window_manager):
         super().__init__(application=app, title="niriswitcher")
         self.config = config
-        self.window_manager = NiriWindowManager()
+        self.window_manager = window_manager
 
         self.show = GenericTransition(
             self.show,
@@ -359,7 +359,8 @@ class NiriswicherApp(Gtk.Application):
         super().__init__()
 
     def do_activate(self):
-        self.window = NiriswitcherWindow(self)
+        self.window_manager = NiriWindowManager()
+        self.window = NiriswitcherWindow(self, self.window_manager)
         LayerShell.init_for_window(self.window)
         LayerShell.set_namespace(self.window, "niriswitcher")
         LayerShell.set_layer(self.window, LayerShell.Layer.TOP)

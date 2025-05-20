@@ -1,12 +1,27 @@
+:root {
+  --bg-color: rgba(28, 28, 30, .95);
+  --label-color: rgb(209, 209, 214);
+  --alternate-label-color: rgb(229, 229, 234);
+  --dim-label-color: rgb(142, 142, 147);
+  --border-color: rgba(72, 72, 74, .95);
+  --highlight-color: rgba(99,99,102,0.95);
+  --urgency-color: rgb(255, 69, 58);
+  --indicator-focus-color: rgba(10, 132, 255, 0.95);
+  --indicator-color: rgba(58, 58, 60, .95);
+}
+
 #niriswitcher {
   background-color: transparent;
-
+  padding: 40px;
 }
+
 #main-view {
-    background-color: rgba(44,44,44,.95);
+    background-color: var(--bg-color);
     border-radius: 22px;
-    border: 1px solid rgba(76,76,76,0.95);
+    border: 1px solid var(--border-color);
     padding: 10px 20px 10px;
+    box-shadow: 0 0 40px 10px rgba(0,0,0,.3),
+      0 0 25px 15px rgba(0,0,0,.2);
 }
 
 .workspace scrollbar, .workspace scrollbar * {
@@ -26,15 +41,14 @@
 
 #application-title {
     background: transparent;
-    color: white;
+    color: var(--label-color);
     transition: all 0.2s ease-in-out;
 }
 
 #workspace-name {
-    /* opacity: 0; */
     transition: all 0.2s ease-in-out;
-    background-color: rgba(99,99,99,0.95);
-    color: white;
+    background-color: var(--highlight-color);
+    color: var(--alternate-label-color);
     border-radius: 22px;
     padding: 3px 9px;
 }
@@ -45,7 +59,7 @@
 }
 
 .workspace-indicator {
-    background-color: rgba(44,44,44,.95);
+    background-color: var(--indicator-color);
     transition: background 200ms 20ms;
     margin:0;
 }
@@ -59,11 +73,11 @@
 }
 
 .workspace-indicator.selected {
-    background-color: rgba(200,200,200,0.95);
+    background-color: var(--indicator-focus-color);
 }
 
 .workspace-indicator:hover {
-    background-color: rgba(200,200,200,0.95);
+    background-color: var(--indicator-focus-color);
 }
 
 #workspace-indicators {
@@ -89,24 +103,38 @@
 }
 
 .application-name {
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease;
   opacity: 0;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--dim-label-color);
+  margin-top: 3px;
 }
 
 .application.selected .application-name {
   opacity: 1;
-  color: rgba(255, 255, 255, 1);
+  color: var(--label-color);
+}
+
+.application.urgent .application-icon {
+  animation: urgency-pulse-animation 2s infinite;
+  opacity: 1;
+}
+
+@keyframes urgency-pulse-animation {
+  0% {
+    -gtk-icon-filter: drop-shadow(0 0 0px var(--urgency-color));
+  }
+  100% {
+    -gtk-icon-filter: drop-shadow(0 0 6px var(--urgency-color));
+  }
 }
 
 .application.focused .application-name {
   opacity: 1;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--dim-label-color);
 }
 
 .application.selected .application-icon {
     transition: background-color 0.1s ease-in;
-    -gtk-icon-filter: brightness(110%);
-    border-radius: 22px;
-    background-color: rgba(99,99,99,0.95);
+    border-radius: 10%;
+    background-color: var(--highlight-color);
 }

@@ -15,6 +15,7 @@ class Window(GObject.Object):
     app_id = GObject.Property(type=str)
     app_info = GObject.Property(type=Gio.DesktopAppInfo)
     title = GObject.Property(type=str)
+    is_urgent = GObject.Property(type=bool, default=False)
     last_focus_time = GObject.Property(type=float)
 
     def __init__(self, window, last_focus_time=None):
@@ -51,6 +52,7 @@ class Workspace(GObject.Object):
     output = GObject.Property(type=str)
     is_active = GObject.Property(type=bool, default=False)
     is_focused = GObject.Property(type=bool, default=False)
+    is_urgent = GObject.Property(type=bool, default=False)
     last_focus_time = GObject.Property(type=float)
 
     @GObject.Property(type=str)
@@ -224,6 +226,18 @@ class NiriWindowManager:
                     self._trigger(
                         "workspace-activated", self.workspaces[self.active_workspace_id]
                     )
+            elif workspace_urgency_changed := obj.get("WorkspaceUrgencyChanged"):
+                with self.lock:
+                    workspace_id = workspace_urgency_changed["id"]
+                    if workspace := self.workspaces.get(workspace_id):
+                        workspace.is_urgent = workspace_urgency_changed["urgent"]
+                        self._trigger("workspace-urgency-changed", workspace)
+            elif window_urgency_changed := obj.get("WindowUrgencyChanged"):
+                with self.lock:
+                    window_id = window_urgency_changed["id"]
+                    if window := self.windows.get(window_id):
+                        window.is_urgent = window_urgency_changed["urgent"]
+                        self._trigger("window-urgency-changed", window)
 
     def get_active_workspace(self):
         self._workspaces_loaded.wait()

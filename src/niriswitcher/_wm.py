@@ -204,6 +204,8 @@ class NiriWindowManager:
                         exists.update(window)
                     else:
                         self.windows[window_id] = Window(window)
+                        self._trigger("window-opened", self.windows[window_id])
+
             elif workspace_window := obj.get("WorkspaceActiveWindowChanged"):
                 workspace_id = workspace_window["workspace_id"]
                 with self.lock:

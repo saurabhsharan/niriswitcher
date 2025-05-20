@@ -50,6 +50,7 @@ class ApplicationView(Gtk.Box):
         self.add_css_class("application")
         name.add_css_class("application-name")
         icon.add_css_class("application-icon")
+        self.set_urgent(window.is_urgent)
 
         gesture = Gtk.GestureClick.new()
         gesture.set_button(0)
@@ -57,8 +58,21 @@ class ApplicationView(Gtk.Box):
         motion = Gtk.EventControllerMotion.new()
         motion.connect("enter", self.on_enter)
         motion.connect("leave", self.on_leave)
+        self.connect("unmap", self.on_unmap)
+        self.connect("map", self.on_map)
         self.add_controller(motion)
         self.add_controller(gesture)
+
+    def on_map(self, widget):
+        self._urgency_handler_id = self.window.connect(
+            "notify::is-urgent", self.on_urgency_change
+        )
+
+    def on_unmap(self, widget):
+        self.window.disconnect(self._urgency_handler_id)
+
+    def on_urgency_change(self, window, spec):
+        self.set_urgent(window.get_property(spec.name))
 
     def on_release(
         self, gesture: Gtk.GestureClick, n_press: int, x: float, y: float
@@ -70,6 +84,12 @@ class ApplicationView(Gtk.Box):
 
     def on_leave(self, motion: Gtk.EventControllerMotion) -> None:
         self.emit("leave", self.window)
+
+    def set_urgent(self, is_urgent):
+        if is_urgent:
+            self.add_css_class("urgent")
+        else:
+            self.remove_css_class("urgent")
 
     def select(self) -> None:
         self.add_css_class("selected")

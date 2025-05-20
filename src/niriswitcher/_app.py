@@ -10,7 +10,6 @@ from ._widgets import (
     WorkspaceStack,
     WorkspaceView,
 )
-from ._wm import NiriWindowManager
 
 
 class KeybindingAction:
@@ -356,14 +355,14 @@ class NiriswitcherWindow(Gtk.Window):
 
 
 class NiriswicherApp(Gtk.Application):
-    def __init__(self):
+    def __init__(self, window_manager):
         super().__init__()
+        self.window_manager = window_manager
 
     def do_activate(self):
-        self.window_manager = NiriWindowManager()
         self.window = NiriswitcherWindow(self, self.window_manager)
         LayerShell.init_for_window(self.window)
         LayerShell.set_namespace(self.window, "niriswitcher")
-        LayerShell.set_layer(self.window, LayerShell.Layer.TOP)
+        LayerShell.set_layer(self.window, LayerShell.Layer.OVERLAY)
         LayerShell.auto_exclusive_zone_enable(self.window)
         LayerShell.set_keyboard_mode(self.window, LayerShell.KeyboardMode.EXCLUSIVE)

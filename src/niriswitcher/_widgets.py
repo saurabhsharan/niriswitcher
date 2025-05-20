@@ -184,19 +184,18 @@ class AnimateScrollToWidget:
 
     """
 
-    def __init__(self, scrolled_window, *, duration=200, easing=None):
-        self.scrolled_window = scrolled_window
+    def __init__(self, *, duration=200, easing=None):
         self._timer_id = None
         self.duration = duration
         self.easing = easing
 
-    def __call__(self, widget):
+    def __call__(self, scrolled_window, widget):
         easing = self.easing
         if easing is None:
             easing = ease_in_out_cubic
 
         def animate_scroll_to_application():
-            hadj = self.scrolled_window.get_hadjustment()
+            hadj = scrolled_window.get_hadjustment()
             child_x = widget.get_allocation().x
             child_width = widget.get_allocation().width
             visible_start = hadj.get_value()
@@ -339,14 +338,13 @@ class SizeTransition:
         transition(initial_size=100, target_size=200, duration=300)
     """
 
-    def __init__(self, widget, *, duration=200, easing=None):
+    def __init__(self, *, duration=200, easing=None):
         self._timer_id = None
         self.current_size = None
-        self.widget = widget
         self.duration = duration
         self.easing = easing
 
-    def __call__(self, initial_size, target_size):
+    def __call__(self, widget, initial_size, target_size):
         self.current_size = initial_size
         easing = self.easing
         if easing is None:
@@ -366,12 +364,12 @@ class SizeTransition:
                 eased_t = easing(t)
                 self.current_size = initial_size + delta * eased_t
                 if t < 1.0:
-                    self.widget.queue_resize()
+                    widget.queue_resize()
                     return True
                 else:
                     self._timer_id = None
                     self.current_size = None
-                    self.widget.queue_resize()
+                    widget.queue_resize()
                     return False
 
             if self._timer_id is not None:
@@ -414,8 +412,8 @@ class WorkspaceView(Gtk.ScrolledWindow):
 
         self.max_width = max_width
         self.min_width = min_width
-        self.size_transition = SizeTransition(self)
-        self.scroll_to = AnimateScrollToWidget(self)
+        self.size_transition = SizeTransition()
+        self._scroll_to = AnimateScrollToWidget()
         self.current_application = self.get_initial_selection()
         self.scroll_duration = 200
         self.resize_duration = 200
@@ -455,7 +453,7 @@ class WorkspaceView(Gtk.ScrolledWindow):
         return self.application_views.get_first_child() is None
 
     def set_scroll_duration(self, scroll_duration):
-        self.scroll_to.duration = scroll_duration
+        self._scroll_to.duration = scroll_duration
 
     def set_resize_duration(self, resize_duration):
         self.size_transition.duration = resize_duration
@@ -464,7 +462,7 @@ class WorkspaceView(Gtk.ScrolledWindow):
         self.size_transition.easing = easing
 
     def set_scroll_easing(self, easing):
-        self.scroll_to.easing = easing
+        self._scroll_to.easing = easing
 
     def get_initial_selection(self):
         first = self.get_first_application_view()
@@ -473,6 +471,9 @@ class WorkspaceView(Gtk.ScrolledWindow):
             second = first
 
         return second
+
+    def scroll_to(self, widget):
+        self._scroll_to(self, widget)
 
     def focus_current(self, hide=True):
         if self.current_application is not None:
@@ -526,6 +527,7 @@ class WorkspaceView(Gtk.ScrolledWindow):
         self.application_views.remove(application)
         after = self.application_views.measure(Gtk.Orientation.HORIZONTAL, -1)
         self.size_transition(
+            self,
             max(self.min_width, min(self.max_width, before.natural)),
             max(self.min_width, min(self.max_width, after.natural)),
         )

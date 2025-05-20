@@ -1,4 +1,4 @@
-%define version 0.3.3
+%define version 0.4.0
 
 Name:           niriswitcher
 Version:        %{version}
@@ -71,3 +71,13 @@ currently active output.
 
 * Fri May 16 2025 Isak Samsten <isak@samsten.se> - 0.3.3-1
 - Fix debug colors in default css (another)
+
+* Fri May 16 2025 Isak Samsten <isak@samsten.se> - 0.4.0-1
+- Update default theme
+- Ensure that we don't have circular dependencies
+- Support urgency hints for applications
+- Ensure that window window title is centered
+- Add support for window-opened events
+- Add support for urgency changes
+- Allow NiriswitcherApp to listen to events from the window manager
+- Fix an issue where app_id would be None

@@ -272,7 +272,8 @@ class NiriswitcherWindow(Gtk.Window):
             "selection-changed", self.on_application_selection_changed
         )
         self.workspace_indicator.set_visible(False)
-        self.current_workspace_name.set_visible(False)
+        self.current_workspace_name.set_opacity(0)
+        self.current_workspace_name.set_width_chars(10)
         self.workspace_stack.add_named(workspace_view, "all")
         workspace_view.select_current()
         self.window_manager.connect("window-closed", self.on_window_closed)

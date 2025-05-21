@@ -1,4 +1,4 @@
-%define version 0.4.0
+%define version 0.5.0
 
 Name:           niriswitcher
 Version:        %{version}
@@ -19,6 +19,7 @@ Requires:       python3-gobject
 Requires:       niri
 Requires:       gtk4-layer-shell
 Requires:       gtk4
+Requires:       libadwaita
 
 %description
 An application switcher for niri.
@@ -72,7 +73,7 @@ currently active output.
 * Fri May 16 2025 Isak Samsten <isak@samsten.se> - 0.3.3-1
 - Fix debug colors in default css (another)
 
-* Fri May 16 2025 Isak Samsten <isak@samsten.se> - 0.4.0-1
+* Tue May 20 2025 Isak Samsten <isak@samsten.se> - 0.4.0-1
 - Update default theme
 - Ensure that we don't have circular dependencies
 - Support urgency hints for applications
@@ -81,3 +82,12 @@ currently active output.
 - Add support for urgency changes
 - Allow NiriswitcherApp to listen to events from the window manager
 - Fix an issue where app_id would be None
+
+* Wed May 21 Isak Samsten <isak@samsten.se> - 0.5.0-1
+- Add support for automatic color theme
+- Improve default window shadow
+- Make the urgency animation smoother
+- Add configuration option to center on focus
+- Make focus and close methods on Window
+- Avoid broken pipe error messages in Niri
+- Fix a bug where workspace_id could be None

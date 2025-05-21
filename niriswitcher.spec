@@ -1,4 +1,4 @@
-%define version 0.5.0
+%define version 0.5.1
 
 Name:           niriswitcher
 Version:        %{version}
@@ -91,3 +91,6 @@ currently active output.
 - Make focus and close methods on Window
 - Avoid broken pipe error messages in Niri
 - Fix a bug where workspace_id could be None
+
+* Wed May 21 Isak Samsten <isak@samsten.se> - 0.5.1-1
+- Fix a bug where system_theme=auto would not automatically switch theme

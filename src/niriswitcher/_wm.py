@@ -20,9 +20,10 @@ class Window(GObject.Object):
 
     def __init__(self, window, last_focus_time=None):
         app_id = window["app_id"]
+        workspace_id = window["workspace_id"]
         super().__init__(
             id=window["id"],
-            workspace_id=window["workspace_id"],
+            workspace_id=workspace_id if workspace_id is not None else -1,
             app_id=app_id,
             app_info=get_app_info(app_id) if app_id is not None else None,
             title=window["title"],
@@ -41,7 +42,10 @@ class Window(GObject.Object):
     def update(self, new):
         self.title = new["title"]
         self.last_focus_time = time.time()
-        self.workspace_id = new["workspace_id"]
+        if workspace_id := new.get("workspace_id"):
+            self.workspace_id = workspace_id
+        else:
+            self.workspace_id = -1
 
 
 
@@ -265,10 +269,15 @@ class NiriWindowManager:
             windows = self.windows.values()
             if active_workspace and workspace_id is None:
                 windows = filter(
-                    lambda w: w.workspace_id == self.active_workspace_id, windows
+                    lambda w: w.workspace_id == -1
+                    or w.workspace_id == self.active_workspace_id,
+                    windows,
                 )
             if workspace_id is not None:
-                windows = filter(lambda w: w.workspace_id == workspace_id, windows)
+                windows = filter(
+                    lambda w: w.workspace_id == -1 or w.workspace_id == workspace_id,
+                    windows,
+                )
 
             return sorted(
                 windows, key=operator.attrgetter("last_focus_time"), reverse=True

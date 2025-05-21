@@ -47,6 +47,11 @@ class Window(GObject.Object):
         else:
             self.workspace_id = -1
 
+    def focus(self):
+        niri_request({"Action": {"FocusWindow": {"id": int(self.id)}}})
+
+    def close(self):
+        niri_request({"Action": {"CloseWindow": {"id": int(self.id)}}})
 
 
 class Workspace(GObject.Object):
@@ -149,12 +154,6 @@ class NiriWindowManager:
         if callbacks := self._signals.get(signal):
             for callback, args in callbacks:
                 callback(*payload, *args)
-
-    def focus_window(self, id):
-        niri_request({"Action": {"FocusWindow": {"id": int(id)}}})
-
-    def close_window(self, id):
-        niri_request({"Action": {"CloseWindow": {"id": int(id)}}})
 
     def start_track_niri_windows(self):
         with connect_niri_socket() as niri_socket:

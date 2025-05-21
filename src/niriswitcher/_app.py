@@ -192,10 +192,10 @@ class NiriswitcherWindow(Gtk.Window):
         self.current_application_title.set_label(title)
 
     def on_close_requested(self, widget, window):
-        self.window_manager.close_window(window.id)
+        window.close()
 
     def on_focus_requested(self, widget, window, hide):
-        self.window_manager.focus_window(window.id)
+        window.focus()
         if hide:
             self.hide()
 

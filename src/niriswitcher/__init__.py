@@ -54,8 +54,9 @@ def main():
         app.get_style_manager().get_dark() and config.appearance.system_theme == "auto"
     ) or config.appearance.system_theme == "dark":
         _set_dark_style()
-        if config.appearance.system_theme == "auto":
-            app.get_style_manager().connect("notify::dark", on_dark)
+
+    if config.appearance.system_theme == "auto":
+        app.get_style_manager().connect("notify::dark", on_dark)
 
     signal.signal(signal.SIGUSR1, signal_handler)
     app.register(None)

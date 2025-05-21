@@ -1,6 +1,6 @@
 import operator
 
-from gi.repository import Gdk, Gtk, Pango
+from gi.repository import Gdk, Gtk, Pango, Adw
 from gi.repository import Gtk4LayerShell as LayerShell
 
 from ._config import config
@@ -357,7 +357,7 @@ class NiriswitcherWindow(Gtk.Window):
         self.workspace_indicator.select_prev()
 
 
-class NiriswicherApp(Gtk.Application):
+class NiriswicherApp(Adw.Application):
     def __init__(self, window_manager):
         super().__init__()
         self.window_manager = window_manager

@@ -1,6 +1,6 @@
 # niriswitcher
 
-An application switcher for niri.
+An application switcher for niri, with support for workspaces and automatic dark mode.
 
 https://github.com/user-attachments/assets/81beb414-6367-4d6f-aa2b-9c55534913b3
 
@@ -100,6 +100,7 @@ center_on_focus = false
 icon_size = 128
 max_width = 800
 min_width = 600
+system_theme = "dark" # auto or light
 
 [appearance.animation.hide]
 duration = 200
@@ -191,6 +192,26 @@ To make the application name visible for non-selected applications (but dimmed):
 }
 .application.selected .application-name {
   color: rgba(255, 255, 255, 1);
+}
+```
+
+`niriswitcher` also uses `style-dark.css` to style the application in `dark` mode.
+
+If you only want to change the colors, you only need to override the colors
+(these are the default colors in light mode, see `style-dark.css` in the
+resources folder for default colors in dark mode):
+
+```css
+:root {
+  --bg-color: rgba(229, 229, 234, 1);
+  --label-color: rgb(58, 58, 60);
+  --alternate-label-color: rgb(44, 44, 46);
+  --dim-label-color: rgb(142, 142, 147);
+  --border-color: rgba(199, 199, 204, .95);
+  --highlight-color: rgba(209, 209, 214,0.95);
+  --urgency-color: rgb(255, 69, 58);
+  --indicator-focus-color: rgba(10, 132, 255, 0.95);
+  --indicator-color: rgba(209, 209, 214, .95);
 }
 ```
 

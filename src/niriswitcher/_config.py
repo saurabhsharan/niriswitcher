@@ -78,6 +78,7 @@ class AppearanceConfig:
     max_width: int = 800
     min_width: int = 600
     animation: AnimationConfig = AnimationConfig()
+    system_theme: str = "dark"  # auto, light
 
 
 @dataclass(frozen=True)
@@ -243,6 +244,7 @@ def load_configuration(config_path=None):
     appearance_icon_size = appearance_section.get("icon_size", 128)
     appearance_max_width = appearance_section.get("max_width", 800)
     appearance_min_width = appearance_section.get("min_width", 600)
+    appearance_system_theme = appearance_section.get("system_theme", "dark")
 
     animation_section = appearance_section.get("animation", {})
     resize_section = animation_section.get("resize", {})
@@ -280,12 +282,13 @@ def load_configuration(config_path=None):
         max_width=appearance_max_width,
         min_width=appearance_min_width,
         animation=animation,
+        system_theme=appearance_system_theme,
     )
 
     return Config(general=general, keys=keys, appearance=appearance)
 
 
-def load_and_initialize_styles(filename="style.css"):
+def load_system_style(filename="style.css", priority=0):
     with (
         importlib.resources.files("niriswitcher.resources")
         .joinpath(filename)
@@ -294,10 +297,10 @@ def load_and_initialize_styles(filename="style.css"):
         provider = Gtk.CssProvider()
         css_data = f.read()
         provider.load_from_data(css_data)
-        Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
+        return provider
 
+
+def load_user_style(filename="style.css"):
     config_home = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
     user_css_path = os.path.join(config_home, "niriswitcher", filename)
     if os.path.isfile(user_css_path):
@@ -305,12 +308,13 @@ def load_and_initialize_styles(filename="style.css"):
             user_provider = Gtk.CssProvider()
             css_data = f.read()
             user_provider.load_from_data(css_data)
-            Gtk.StyleContext.add_provider_for_display(
-                Gdk.Display.get_default(),
-                user_provider,
-                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1,
-            )
+            return user_provider
+    return None
 
 
+DEFAULT_CSS_PROVIDER = load_system_style(filename="style.css")
+DEFAULT_DARK_CSS_PROVIDER = load_system_style(filename="style-dark.css")
+
+DEFAULT_USER_CSS_PROVIDER = load_user_style(filename="style.css")
+DEFAULT_DARK_USER_CSS_PROVIDER = load_user_style(filename="style-dark.css")
 config = load_configuration()
-load_and_initialize_styles()

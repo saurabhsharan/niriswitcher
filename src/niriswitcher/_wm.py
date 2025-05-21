@@ -110,10 +110,12 @@ def connect_niri_socket():
 
 def niri_request(request):
     with connect_niri_socket() as niri_socket:
-        with niri_socket.makefile("w") as socket_file:
+        with niri_socket.makefile("rw") as socket_file:
             socket_file.write(json.dumps(request))
             socket_file.write("\n")
             socket_file.flush()
+            niri_socket.shutdown(socket.SHUT_WR)
+            socket_file.readline()  # Avoid broken pipe in niri
 
 
 class NiriWindowManager:

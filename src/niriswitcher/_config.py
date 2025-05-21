@@ -17,6 +17,7 @@ from ._anim import (
 class GeneralConfig:
     separate_workspaces: bool = True
     double_click_to_hide: bool = False
+    center_on_focus: bool = False
 
 
 @dataclass(frozen=True)
@@ -206,9 +207,11 @@ def load_configuration(config_path=None):
 
     separate_workspaces = config.get("separate_workspaces", True)
     double_click_to_hide = config.get("double_click_to_hide", False)
+    center_on_focus = config.get("center_on_focus", False)
     general = GeneralConfig(
         separate_workspaces=separate_workspaces,
         double_click_to_hide=double_click_to_hide,
+        center_on_focus=center_on_focus,
     )
 
     keys_section = config.get("keys", {})

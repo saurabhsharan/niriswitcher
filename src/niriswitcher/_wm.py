@@ -47,6 +47,9 @@ class Window(GObject.Object):
         else:
             self.workspace_id = -1
 
+    def center(self):
+        niri_request({"Action": {"CenterWindow": {"id": int(self.id)}}})
+
     def focus(self):
         niri_request({"Action": {"FocusWindow": {"id": int(self.id)}}})
 

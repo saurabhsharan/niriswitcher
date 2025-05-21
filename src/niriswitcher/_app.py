@@ -196,6 +196,9 @@ class NiriswitcherWindow(Gtk.Window):
 
     def on_focus_requested(self, widget, window, hide):
         window.focus()
+        if config.general.center_on_focus:
+            window.center()
+
         if hide:
             self.hide()
 

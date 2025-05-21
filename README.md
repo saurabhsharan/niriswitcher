@@ -94,6 +94,7 @@ The configuration file is a simple `.toml`-file in
 ```toml
 separate_workspaces = true
 double_click_to_hide = false
+center_on_focus = false
 
 [appearance]
 icon_size = 128

@@ -20,8 +20,8 @@
     border-radius: 22px;
     border: 1px solid var(--border-color);
     padding: 10px 20px 10px;
-    box-shadow: 0 0 40px 10px rgba(0,0,0,.3),
-      0 0 25px 15px rgba(0,0,0,.2);
+    box-shadow: 0 0 20px 5px rgba(0,0,0,.3),
+      0 0 13px 8px rgba(0,0,0,.2);
 }
 
 .workspace scrollbar, .workspace scrollbar * {
@@ -82,9 +82,9 @@
 
 #workspace-indicators {
     background: transparent;
-    padding-top: 22px;
-    padding-bottom: 22px;
-    padding-right: 2px;
+    margin-top: 22px;
+    margin-bottom: 22px;
+    margin-right: 2px;
 }
 
 

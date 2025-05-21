@@ -115,16 +115,29 @@
 }
 
 .application.urgent .application-icon {
-  animation: urgency-pulse-animation 2s infinite;
-  opacity: 1;
+  animation-timing-function: linear;
+  animation: urgency-pulse-animation 2.5s infinite;
 }
 
 @keyframes urgency-pulse-animation {
-  0% {
-    -gtk-icon-filter: drop-shadow(0 0 0px var(--urgency-color));
+ 0% {
+      -gtk-icon-filter: drop-shadow(0 0 2px var(--urgency-color));
   }
+
+  25% {
+    -gtk-icon-filter: drop-shadow(0 0 5px var(--urgency-color));
+  }
+
+  50% {
+    -gtk-icon-filter: drop-shadow(0 0 10px var(--urgency-color));
+  }
+
+  75% {
+    -gtk-icon-filter: drop-shadow(0 0 5px var(--urgency-color));
+    }
+
   100% {
-    -gtk-icon-filter: drop-shadow(0 0 6px var(--urgency-color));
+    -gtk-icon-filter: drop-shadow(0 0 2px var(--urgency-color));
   }
 }
 

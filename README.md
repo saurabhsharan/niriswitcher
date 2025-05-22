@@ -1,6 +1,9 @@
 # niriswitcher
 
-An application switcher for niri, with support for workspaces and automatic dark mode.
+An application switcher for niri, with support for workspaces and automatic light and dark mode.
+![Image](https://github.com/user-attachments/assets/33ad582f-4540-428a-8fbc-849c35c7ec76)
+
+## Screencast
 
 https://github.com/user-attachments/assets/81beb414-6367-4d6f-aa2b-9c55534913b3
 
@@ -214,7 +217,15 @@ resources folder for default colors in dark mode):
   --indicator-color: rgba(209, 209, 214, .95);
 }
 ```
+##### Default light mode style
 
+![Image](https://github.com/user-attachments/assets/10593e6a-53d7-4359-951d-59270088bbc6)
+
+##### Default dark mode style
+
+![Image](https://github.com/user-attachments/assets/33ad582f-4540-428a-8fbc-849c35c7ec76)
+
+[Input on the default design is welcome](https://github.com/isaksamsten/niriswitcher/issues/8)
 # Known issues
 
 If `Alt` (the modifier key) is released before `niriswitcher` has been fully initialized, the window will not close unless the modifier key is pressed and released (to change to the next application) or `Esc` is pressed to close the window.

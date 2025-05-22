@@ -1,4 +1,4 @@
-%define version 0.5.1
+%define version 0.5.2
 
 Name:           niriswitcher
 Version:        %{version}
@@ -94,3 +94,6 @@ currently active output.
 
 * Wed May 21 Isak Samsten <isak@samsten.se> - 0.5.1-1
 - Fix a bug where system_theme=auto would not automatically switch theme
+
+* Thu May 22 Isak Samsten <isak@samsten.se> - 0.5.2-1
+- Fix a regression in the reveal animation

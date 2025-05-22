@@ -308,8 +308,8 @@ class GenericTransition:
                 else:
                     self._timer_id = None
                     self._current = None
+                    self.setter(self.target)
                     if not self.before:
-                        self.setter(self.target)
                         self.method(*args, **kwargs)
                     return False
 

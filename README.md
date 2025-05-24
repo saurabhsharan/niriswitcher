@@ -24,6 +24,7 @@ to install a release version.
 >
 > - `python3-gobject`
 > - `gtk4-layer-shell`
+> - `libadwaita`
 >
 > These are the names of the packages on Fedora, but I'm sure they are
 > distributed for other distributions.

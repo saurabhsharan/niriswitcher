@@ -140,19 +140,22 @@ class NiriWindowManager:
         threading.Thread(target=self.start_track_niri_windows, daemon=True).start()
 
     def connect(self, signal, callback, *args):
-        self._signals[signal].append((callback, args))
-        return len(self._signals[signal])
+        with self.lock:
+            self._signals[signal].append((callback, args))
+            return len(self._signals[signal])
 
     def disconnect(self, signal, id=None):
-        if signal not in self._signals:
-            return
+        with self.lock:
+            if signal not in self._signals:
+                return
 
-        if id is None:
-            del self._signals[signal]
-        else:
-            if 0 <= id < len(self._signals[signal]):
-                del self._signals[signal][id]
+            if id is None:
+                del self._signals[signal]
+            else:
+                if 0 <= id < len(self._signals[signal]):
+                    del self._signals[signal][id]
 
+    # Should only be used when the lock is held
     def _trigger(self, signal, *payload):
         if callbacks := self._signals.get(signal):
             for callback, args in callbacks:

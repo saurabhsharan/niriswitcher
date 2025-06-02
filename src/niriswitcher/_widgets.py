@@ -410,6 +410,11 @@ class WorkspaceView(Gtk.ScrolledWindow):
         self.resize_easing = None
         self.scroll_easing = None
 
+    def set_width(self, min_width, max_width):
+        self.max_width = max_width
+        self.min_width = min_width
+        self.queue_resize()
+
     def on_released(self, widget, gesture, n_press, window):
         hide = True
         if config.general.double_click_to_hide:
@@ -455,12 +460,7 @@ class WorkspaceView(Gtk.ScrolledWindow):
         self._scroll_to.easing = easing
 
     def get_initial_selection(self):
-        first = self.get_first_application_view()
-        second = first.get_next_sibling()
-        if second is None:
-            second = first
-
-        return second
+        return self.get_first_application_view()
 
     def scroll_to(self, widget):
         self._scroll_to(self, widget)
@@ -527,8 +527,12 @@ class WorkspaceView(Gtk.ScrolledWindow):
         min_size = measure.minimum
         nat_size = measure.natural
         if orientation == Gtk.Orientation.HORIZONTAL:
-            min_size = min(self.max_width, min_size)
-            nat_size = min(self.max_width, nat_size)
+            if self.max_width is None:
+                min_size = min_size
+                nat_size = nat_size
+            else:
+                min_size = min(self.max_width, min_size)
+                nat_size = min(self.max_width, nat_size)
             if self.size_transition.current_size is not None:
                 nat_size = self.size_transition.current_size
 
@@ -620,19 +624,19 @@ class WorkspaceIndicator(Gtk.Box):
         self.current.select()
         self.emit("selection-changed", self.current.workspace, animate)
 
-    def select_next(self):
+    def select_next(self, animate=True):
         next = self.current.get_next_sibling()
         if next is None:
             next = self.get_first_child()
 
-        self.select(next)
+        self.select(next, animate=animate)
 
-    def select_prev(self):
+    def select_prev(self, animate=True):
         prev = self.current.get_prev_sibling()
         if prev is None:
             prev = self.get_last_child()
 
-        self.select(prev)
+        self.select(prev, animate=animate)
 
     def __iter__(self):
         current = self.get_first_child()
@@ -642,14 +646,21 @@ class WorkspaceIndicator(Gtk.Box):
 
 
 class WorkspaceStack(Gtk.Stack):
-    def __init__(self):
+    def __init__(self, max_width=None, min_width=None):
         super().__init__()
         self.set_name("workspaces")
         self.set_transition_type(Gtk.StackTransitionType.SLIDE_UP_DOWN)
         self.set_hhomogeneous(False)
         self.set_interpolate_size(True)
-
+        self.max_width = max_width
+        self.min_width = min_width
+        self.connect("notify::visible-child", self._on_visible_child)
         self.indicator: WorkspaceIndicator = None
+
+    def set_width(self, min_width, max_width):
+        self.min_width = min_width
+        self.max_width = max_width
+        self.get_visible_child().set_width(self.min_width, self.max_width)
 
     def set_indicator(self, indicator):
         for indicator_child in list(indicator):
@@ -664,6 +675,9 @@ class WorkspaceStack(Gtk.Stack):
         if self.indicator:
             self.indicator.append_workspace(workspace_view.workspace)
         self.add_named(workspace_view, workspace_view.workspace.identifier)
+
+    def _on_visible_child(self, widget, prop):
+        self.get_visible_child().set_width(self.min_width, self.max_width)
 
     def on_selection_changed(self, widget, workspace, animate):
         workspace_view = self.get_child_by_name(workspace.identifier)

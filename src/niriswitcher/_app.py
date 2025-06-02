@@ -1,6 +1,6 @@
 import operator
 
-from gi.repository import Gdk, Gtk, Pango, Adw
+from gi.repository import Gdk, Gtk, Pango, Adw, Gio, GLib
 from gi.repository import Gtk4LayerShell as LayerShell
 
 from ._config import config
@@ -118,6 +118,8 @@ class NiriswitcherWindow(Gtk.Window):
         inner_box.append(main_view)
 
         self.set_child(inner_box)
+        self.set_valign(Gtk.Align.CENTER)
+        self.set_halign(Gtk.Align.CENTER)
         self.set_decorated(False)
         self.set_modal(True)
         self.set_resizable(False)
@@ -220,11 +222,19 @@ class NiriswitcherWindow(Gtk.Window):
         LayerShell.set_monitor(self, monitor)
         geometry = monitor.get_geometry()
 
-        max_size = int(geometry.width * 0.9)
-        if not config.general.separate_workspaces:
-            self._show_unified_workspace(max_size)
-        else:
-            self._show_separate_workspaces(max_size)
+        screen_width = int(geometry.width * 0.9)
+        self.workspace_stack.set_width(
+            min(config.appearance.min_width, screen_width),
+            min(config.appearance.max_width, screen_width),
+        )
+        self.window_manager.connect("window-closed", self.on_window_closed)
+        self.window_manager.connect(
+            "workspace-activated",
+            self.on_workspace_activated,
+        )
+        self.window_manager.connect(
+            "window-focus-changed", self.on_window_focus_changed
+        )
 
     def _create_keybindings(self):
         return sorted(
@@ -244,13 +254,11 @@ class NiriswitcherWindow(Gtk.Window):
             reverse=True,
         )
 
-    def _show_unified_workspace(self, screen_width):
+    def populate_unified_workspace(self):
         windows = self.window_manager.get_windows(active_workspace=False)
         workspace_view = WorkspaceView(
             None,
             windows,
-            min_width=min(config.appearance.min_width, screen_width),
-            max_width=min(config.appearance.max_width, screen_width),
             icon_size=config.appearance.icon_size,
         )
         workspace_view.set_scroll_duration(config.appearance.animation.switch.duration)
@@ -267,22 +275,16 @@ class NiriswitcherWindow(Gtk.Window):
         self.current_workspace_name.set_width_chars(10)
         self.workspace_stack.add_named(workspace_view, "all")
         workspace_view.select_current()
-        self.window_manager.connect("window-closed", self.on_window_closed)
-        self.window_manager.connect(
-            "window-focus-changed", self.on_window_focus_changed
-        )
 
-    def _show_separate_workspaces(self, screen_width):
+    def populate_separate_workspaces(self, mru=False):
         self.workspace_indicator.set_visible(True)
         self.current_workspace_name.set_visible(True)
-        for workspace in self.window_manager.get_workspaces():
+        for workspace in self.window_manager.get_workspaces(mru=mru):
             windows = self.window_manager.get_windows(workspace_id=workspace.id)
             if len(windows) > 0:
                 workspace_view = WorkspaceView(
                     workspace,
                     windows,
-                    min_width=min(config.appearance.min_width, screen_width),
-                    max_width=min(config.appearance.max_width, screen_width),
                     icon_size=config.appearance.icon_size,
                 )
                 workspace_view.set_scroll_duration(
@@ -308,14 +310,9 @@ class NiriswitcherWindow(Gtk.Window):
         self.workspace_indicator.select_by_workspace_id(
             active_workspace.id, animate=False
         )
-        self.window_manager.connect("window-closed", self.on_window_closed)
-        self.window_manager.connect(
-            "workspace-activated",
-            self.on_workspace_activated,
-        )
-        self.window_manager.connect(
-            "window-focus-changed", self.on_window_focus_changed
-        )
+        self.workspace_stack.get_child_by_name(
+            active_workspace.identifier
+        ).select_next()
 
     def focus_selected_window(self):
         workspace_view = self.workspace_stack.get_visible_child()
@@ -333,23 +330,42 @@ class NiriswitcherWindow(Gtk.Window):
         workspace_stack = self.workspace_stack.get_visible_child()
         workspace_stack.select_prev()
 
-    def select_next_workspace(self):
+    def select_next_workspace(self, animate=True):
         if not config.general.separate_workspaces:
             return
 
-        self.workspace_indicator.select_next()
+        self.workspace_indicator.select_next(animate=animate)
 
-    def select_prev_workspace(self):
+    def select_prev_workspace(self, animate=True):
         if not config.general.separate_workspaces:
             return
 
-        self.workspace_indicator.select_prev()
+        self.workspace_indicator.select_prev(animate=animate)
 
 
 class NiriswicherApp(Adw.Application):
+    DBUS_INTERFACE_XML = """
+    <node>
+        <interface name="io.github.isaksamsten.Niriswitcher">
+            <method name="application">
+            </method>
+            <method name="workspace">
+            </method>
+            <property name="visible" type="b" access="read"/>
+            <signal name="VisibilityChanged">
+                <arg name="visible" type="b"/>
+            </signal>
+        </interface>
+    </node>
+    """
+
     def __init__(self, window_manager):
-        super().__init__()
+        super().__init__(
+            application_id="io.github.isaksamsten.Niriswitcher",
+            flags=Gio.ApplicationFlags.FLAGS_NONE,
+        )
         self.window_manager = window_manager
+        self._dbus_registration_id = None
 
     def do_activate(self):
         self.window = NiriswitcherWindow(self, self.window_manager)
@@ -358,3 +374,98 @@ class NiriswicherApp(Adw.Application):
         LayerShell.set_layer(self.window, LayerShell.Layer.OVERLAY)
         LayerShell.auto_exclusive_zone_enable(self.window)
         LayerShell.set_keyboard_mode(self.window, LayerShell.KeyboardMode.EXCLUSIVE)
+
+        self.window.connect("notify::visible", self._on_window_visibility_changed)
+
+    def _on_window_visibility_changed(self, window, pspec):
+        visible = window.get_visible()
+        if self.get_dbus_connection() is not None:
+            variant = GLib.Variant("(b)", (visible,))
+            self.get_dbus_connection().emit_signal(
+                None,
+                self.get_dbus_object_path(),
+                self.get_application_id(),
+                "VisibilityChanged",
+                variant,
+            )
+
+    def _should_present(self):
+        separate_workspaces = config.general.separate_workspaces
+        n_windows = self.window_manager.get_n_windows(
+            active_workspace=separate_workspaces
+        )
+        return (separate_workspaces and n_windows > 0) or (
+            not separate_workspaces and n_windows > 1
+        )
+
+    def _handle_dbus_method(
+        self,
+        connection,
+        sender,
+        object_path,
+        interface_name,
+        method_name,
+        parameters,
+        invocation,
+    ):
+        try:
+            if method_name == "application":
+                if self._should_present():
+                    if config.general.separate_workspaces:
+                        self.window.populate_separate_workspaces(
+                            mru=config.general.workspace_mru_sort
+                        )
+                    else:
+                        self.window.populate_unified_workspace()
+
+                    self.window.set_visible(True)
+                invocation.return_value(None)
+            elif method_name == "workspace":
+                if config.general.separate_workspaces:
+                    self.window.populate_separate_workspaces(mru=True)
+                    self.window.select_next_workspace(animate=False)
+                else:
+                    self.window.populate_unified_workspace()
+
+                self.window.set_visible(True)
+                invocation.return_value(None)
+        except Exception as e:
+            invocation.return_error_literal(
+                Gio.dbus_error_quark(), Gio.DBusError.FAILED, str(e)
+            )
+
+    def _unregister_dbus(self, connection):
+        if self._dbus_registration_id is not None:
+            try:
+                connection.unregister_object(self._dbus_registration_id)
+            except Exception:
+                pass
+            finally:
+                self._dbus_registration_id = None
+
+    def do_dbus_register(self, connection, object_path):
+        self._unregister_dbus(connection)
+
+        node_info = Gio.DBusNodeInfo.new_for_xml(self.DBUS_INTERFACE_XML)
+        interface_info = node_info.interfaces[0]
+
+        self._dbus_registration_id = connection.register_object(
+            object_path,
+            interface_info,
+            self._handle_dbus_method,
+            self._handle_dbus_get_property,
+            None,
+        )
+
+        return Adw.Application.do_dbus_register(self, connection, object_path)
+
+    def _handle_dbus_get_property(
+        self, connection, sender, object_path, interface_name, property_name
+    ):
+        if property_name == "visible":
+            return GLib.Variant("b", self.window.get_visible())
+        return None
+
+    def do_dbus_unregister(self, connection, object_path):
+        self._unregister_dbus(connection)
+        return Adw.Application.do_dbus_unregister(self, connection, object_path)

@@ -1,41 +1,63 @@
-from ctypes import CDLL
-
-CDLL("libgtk4-layer-shell.so.0")
-
-import gi  # noqa: E402
-
-gi.require_version("Gtk4LayerShell", "1.0")
-gi.require_version("Gtk", "4.0")
-gi.require_version("Adw", "1")
-
-import signal  # noqa: E402
-
-from ._config import (  # noqa: E402
-    config,
-    DEFAULT_CSS_PROVIDER,
-    DEFAULT_USER_CSS_PROVIDER,
-    DEFAULT_DARK_CSS_PROVIDER,
-    DEFAULT_DARK_USER_CSS_PROVIDER,
-)
-from ._app import NiriswicherApp  # noqa: E402
-from ._wm import NiriWindowManager  # noqa: E402
-from gi.repository import Gtk, Gdk  # noqa: E402
-
-
 def main():
+    from ctypes import CDLL
+
+    CDLL("libgtk4-layer-shell.so.0")
+
+    import gi
+
+    gi.require_version("Gtk4LayerShell", "1.0")
+    gi.require_version("Gtk", "4.0")
+    gi.require_version("Adw", "1")
+
+    import signal
+
+    from ._config import (
+        config,
+        DEFAULT_CSS_PROVIDER,
+        DEFAULT_USER_CSS_PROVIDER,
+        DEFAULT_DARK_CSS_PROVIDER,
+        DEFAULT_DARK_USER_CSS_PROVIDER,
+    )
+    from ._app import NiriswicherApp
+    from ._wm import NiriWindowManager
+    from gi.repository import Gtk, Gdk
+
+    def _set_dark_style():
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(),
+            DEFAULT_DARK_CSS_PROVIDER,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1,
+        )
+        if DEFAULT_DARK_USER_CSS_PROVIDER is not None:
+            Gtk.StyleContext.add_provider_for_display(
+                Gdk.Display.get_default(),
+                DEFAULT_DARK_USER_CSS_PROVIDER,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 3,
+            )
+
+    def on_dark(style_manager, prop):
+        if style_manager.get_dark():
+            _set_dark_style()
+        else:
+            Gtk.StyleContext.remove_provider_for_display(
+                Gdk.Display.get_default(), DEFAULT_DARK_CSS_PROVIDER
+            )
+            if DEFAULT_DARK_USER_CSS_PROVIDER is not None:
+                Gtk.StyleContext.remove_provider_for_display(
+                    Gdk.Display.get_default(), DEFAULT_DARK_USER_CSS_PROVIDER
+                )
+
     window_manager = NiriWindowManager()
     app = NiriswicherApp(window_manager)
 
-    def should_present():
-        separate_workspaces = config.general.separate_workspaces
-        n_windows = window_manager.get_n_windows(active_workspace=separate_workspaces)
-
-        return (separate_workspaces and n_windows > 0) or (
-            not separate_workspaces and n_windows > 1
-        )
-
     def signal_handler(signum, frame):
-        if should_present():
+        if app._should_present():
+            if config.general.separate_workspaces:
+                app.window.populate_separate_workspaces(
+                    config.general.workspace_mru_sort
+                )
+            else:
+                app.window.populate_unified_workspace()
             app.window.set_visible(True)
 
     Gtk.StyleContext.add_provider_for_display(
@@ -63,28 +85,56 @@ def main():
     app.run()
 
 
-def _set_dark_style():
-    Gtk.StyleContext.add_provider_for_display(
-        Gdk.Display.get_default(),
-        DEFAULT_DARK_CSS_PROVIDER,
-        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1,
+def main_ctl():
+    import sys
+    import argparse
+    from gi.repository import Gio, GLib
+
+    parser = argparse.ArgumentParser(description="Control niriswitcher")
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
+
+    show_parser = subparsers.add_parser("show", help="Show switcher")
+    group = show_parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--window", action="store_true", help="Show window switcher")
+    group.add_argument(
+        "--workspace", action="store_true", help="Show workspace switcher"
     )
-    if DEFAULT_DARK_USER_CSS_PROVIDER is not None:
-        Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(),
-            DEFAULT_DARK_USER_CSS_PROVIDER,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 3,
+
+    args = parser.parse_args()
+
+    if args.command != "show":
+        parser.print_help()
+        return 1
+
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        proxy = Gio.DBusProxy.new_sync(
+            bus,
+            Gio.DBusProxyFlags.NONE,
+            None,
+            "io.github.isaksamsten.Niriswitcher",
+            "/io/github/isaksamsten/Niriswitcher",
+            "io.github.isaksamsten.Niriswitcher",
+            None,
         )
 
+        if args.window:
+            proxy.call_sync("application", None, Gio.DBusCallFlags.NONE, -1, None)
+        elif args.workspace:
+            proxy.call_sync("workspace", None, Gio.DBusCallFlags.NONE, -1, None)
 
-def on_dark(style_manager, prop):
-    if style_manager.get_dark():
-        _set_dark_style()
-    else:
-        Gtk.StyleContext.remove_provider_for_display(
-            Gdk.Display.get_default(), DEFAULT_DARK_CSS_PROVIDER
+        return 0
+
+    except GLib.Error as e:
+        print(
+            f"Error: Failed to connect to DBus service 'io.github.isaksamsten.Niriswitcher' at '/io/github/isaksamsten/Niriswitcher'.\n"
+            f"Reason: [{type(e).__name__}] {e.message}\n"
+            "Possible causes:\n"
+            "  - The niriswitcher service is not running.\n"
+            "  - There is a problem with your DBus session.\n"
+            "Suggestions:\n"
+            "  - Start or restart niriswitcher.\n"
+            "  - Ensure your DBus session is active.\n",
+            file=sys.stderr,
         )
-        if DEFAULT_DARK_USER_CSS_PROVIDER is not None:
-            Gtk.StyleContext.remove_provider_for_display(
-                Gdk.Display.get_default(), DEFAULT_DARK_USER_CSS_PROVIDER
-            )
+        return 1

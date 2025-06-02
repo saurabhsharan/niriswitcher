@@ -290,6 +290,13 @@ class NiriWindowManager:
                 windows, key=operator.attrgetter("last_focus_time"), reverse=True
             )
 
-    def get_workspaces(self):
+    def get_workspaces(self, mru=False):
         with self.lock:
-            return sorted(self.workspaces.values(), key=operator.attrgetter("idx"))
+            if mru:
+                return sorted(
+                    self.workspaces.values(),
+                    key=operator.attrgetter("last_focus_time"),
+                    reverse=True,
+                )
+            else:
+                return sorted(self.workspaces.values(), key=operator.attrgetter("idx"))

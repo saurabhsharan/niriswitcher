@@ -17,6 +17,7 @@ from ._anim import (
 @dataclass(frozen=True)
 class GeneralConfig:
     separate_workspaces: bool = True
+    workspace_mru_sort: bool = True
     double_click_to_hide: bool = False
     center_on_focus: bool = False
 
@@ -211,10 +212,12 @@ def load_configuration(config_path=None):
     separate_workspaces = config.get("separate_workspaces", True)
     double_click_to_hide = config.get("double_click_to_hide", False)
     center_on_focus = config.get("center_on_focus", False)
+    workspace_mru_sort = config.get("workspace_mru_sort", False)
     general = GeneralConfig(
         separate_workspaces=separate_workspaces,
         double_click_to_hide=double_click_to_hide,
         center_on_focus=center_on_focus,
+        workspace_mru_sort=workspace_mru_sort,
     )
 
     keys_section = config.get("keys", {})
@@ -334,4 +337,5 @@ DEFAULT_DARK_CSS_PROVIDER = load_system_style(filename="style-dark.css")
 
 DEFAULT_USER_CSS_PROVIDER = load_user_style(filename="style.css")
 DEFAULT_DARK_USER_CSS_PROVIDER = load_user_style(filename="style-dark.css")
+
 config = load_configuration()

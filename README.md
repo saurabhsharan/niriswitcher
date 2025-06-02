@@ -53,6 +53,7 @@ yay -S niriswitcher
 ### Nix
 
 A [Nix package](https://search.nixos.org/packages?channel=unstable&show=niriswitcher) for niriswitcher is available. Add the following to your configuration:
+
 ```nix
 environment.systemPackages = with pkgs; [
   niriswitcher
@@ -75,21 +76,21 @@ niriswitcher is also available on NUR. Nix users can setup NUR by following [thi
 For a simple flake based setup:
 
 - Add NUR to your flake inputs
-    ```nix
-    nur = {
-        url = "github:nix-community/NUR";
-        inputs.nixpkgs.follows = "nixpkgs";
-    };
-    ```
+  ```nix
+  nur = {
+      url = "github:nix-community/NUR";
+      inputs.nixpkgs.follows = "nixpkgs";
+  };
+  ```
 - Add the NUR overlay to your NixOS configuration (optional)
-    ```nix
-    {
-        nixpkgs.overlays = [ nur.overlays.default ];
-    }
-    ```
+  ```nix
+  {
+      nixpkgs.overlays = [ nur.overlays.default ];
+  }
+  ```
 - To your packages list, add:
-    - `pkgs.nur.repos.Vortriz.niriswitcher` if you added the overlay
-    - `nur.legacyPackages."${pkgs.system}".repos.Vortriz.niriswitcher` if you did not use the overlay
+  - `pkgs.nur.repos.Vortriz.niriswitcher` if you added the overlay
+  - `nur.legacyPackages."${pkgs.system}".repos.Vortriz.niriswitcher` if you did not use the overlay
 
 </details>
 
@@ -102,16 +103,17 @@ For a simple flake based setup:
 </summary>
 
 - Add NUR to your flake inputs
-    ```nix
-    nur = {
-        url = "github:nix-community/NUR";
-        inputs.nixpkgs.follows = "nixpkgs";
-    };
-    ```
+  ```nix
+  nur = {
+      url = "github:nix-community/NUR";
+      inputs.nixpkgs.follows = "nixpkgs";
+  };
+  ```
 - Add `nur.legacyPackages."${pkgs.system}".repos.Vortriz.homeManagerModules.niriswitcher` to your `imports` in `home.nix`
 - Set `programs.niriswitcher.enable = true`. Optionally, you can configure niriswitcher with `programs.niriswitcher.config` (for `config.toml`) and `programs.niriswitcher.style` (for `style.css`). The exact configuration values for these options are detailed in the section ahead.
 
 For more information on using the module itself, check out the [source file](https://github.com/Vortriz/nur-packages/blob/main/modules/home-manager/niriswitcher.nix).
+
 </details>
 
 ## Configuration
@@ -182,8 +184,9 @@ max_width = 800
 min_width = 600
 system_theme = "dark" # auto or light
 
-[appearance.animation.hide]
-duration = 200
+[appearance.animation.reveal]
+hide_duration = 200
+show_duration = 200
 easing = "ease-out-cubic"
 
 [appearance.animation.resize]

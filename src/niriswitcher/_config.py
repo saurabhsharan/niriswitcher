@@ -1,6 +1,7 @@
 import os
 import importlib
 import importlib.resources
+import sys
 import tomllib
 from gi.repository import Gtk, Gdk
 from dataclasses import dataclass
@@ -59,8 +60,9 @@ class WorkspaceAnimationConfig:
 
 
 @dataclass(frozen=True)
-class HideAnimationConfig:
-    duration: int = 200
+class ActivateAnimationConfig:
+    hide_duration: int = 200
+    show_duration: int = 200
     easing: callable = ease_out_cubic
 
 
@@ -69,7 +71,7 @@ class AnimationConfig:
     resize: ResizeAnimationConfig = ResizeAnimationConfig()
     switch: SwitchAnimationConfig = SwitchAnimationConfig()
     workspace: WorkspaceAnimationConfig = WorkspaceAnimationConfig()
-    hide: HideAnimationConfig = HideAnimationConfig()
+    activate: ActivateAnimationConfig = ActivateAnimationConfig()
 
 
 @dataclass
@@ -251,6 +253,7 @@ def load_configuration(config_path=None):
     switch_section = animation_section.get("switch", {})
     workspace_section = animation_section.get("workspace", {})
     hide_section = animation_section.get("hide", {})
+    reveal_section = animation_section.get("reveal", {})
 
     resize_animation = ResizeAnimationConfig(
         duration=resize_section.get("duration", 200),
@@ -266,15 +269,29 @@ def load_configuration(config_path=None):
             workspace_section.get("transition", "slide")
         ),
     )
-    hide_animation = HideAnimationConfig(
-        duration=hide_section.get("duration", 200),
-        easing=get_easing_function(hide_section.get("easing", "ease-out-cubic")),
+
+    duration = 200
+    easing = "ease-out-cubic"
+    if len(hide_section) > 1:
+        print(
+            "The configuration option appearance.animation.hide has been "
+            "renamed to reveal, with show_duration and hide_duration. "
+            "Support for hide will be removed in 1.0.",
+            file=sys.stderr,
+        )
+        duration = hide_section.get("duration", 200)
+        easing = hide_section.get("easing", "ease-out-cubic")
+
+    reveal_animation = ActivateAnimationConfig(
+        show_duration=reveal_section.get("show_duration", duration),
+        hide_duration=reveal_section.get("hide_duration", duration),
+        easing=get_easing_function(reveal_section.get("easing", easing)),
     )
     animation = AnimationConfig(
         resize=resize_animation,
         switch=switch_animation,
         workspace=workspace_animation,
-        hide=hide_animation,
+        activate=reveal_animation,
     )
 
     appearance = AppearanceConfig(

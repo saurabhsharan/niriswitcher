@@ -5,7 +5,7 @@ from gi.repository import Gtk4LayerShell as LayerShell
 
 from ._config import config
 from ._widgets import (
-    GenericTransition,
+    WidgetPropertyAnimation,
     WorkspaceIndicator,
     WorkspaceStack,
     WorkspaceView,
@@ -49,32 +49,21 @@ class NiriswitcherWindow(Gtk.Window):
         self.config = config
         self.window_manager = window_manager
 
-        self.show = GenericTransition(
-            self.show,
-            before=True,
+        def show_hide_duration(visible):
+            return (
+                config.appearance.animation.activate.show_duration
+                if visible
+                else config.appearance.animation.activate.hide_duration
+            )
+
+        self.set_visible = WidgetPropertyAnimation(
+            self.set_visible,
+            before=lambda x: x,
             setter=self.set_opacity,
             initial=0.01,
             target=1,
-            duration=config.appearance.animation.hide.duration,
-            easing=config.appearance.animation.hide.easing,
-        )
-        self.present = GenericTransition(
-            self.present,
-            before=True,
-            setter=self.set_opacity,
-            initial=0.01,
-            target=1,
-            duration=config.appearance.animation.hide.duration,
-            easing=config.appearance.animation.hide.easing,
-        )
-        self.hide = GenericTransition(
-            self.hide,
-            before=False,
-            setter=self.set_opacity,
-            initial=1,
-            target=0,
-            duration=config.appearance.animation.hide.duration,
-            easing=config.appearance.animation.hide.easing,
+            duration=show_hide_duration,
+            easing=config.appearance.animation.activate.easing,
         )
 
         self.current_application_title = Gtk.Label()
@@ -168,7 +157,7 @@ class NiriswitcherWindow(Gtk.Window):
         for workspace_view in self.workspace_stack:
             if workspace_view.remove_by_window_id(window.id):
                 if workspace_view.is_empty():
-                    self.hide()
+                    self.set_visible(False)
                 return
 
     def on_workspace_activated(self, workspace):
@@ -200,7 +189,7 @@ class NiriswitcherWindow(Gtk.Window):
             window.center()
 
         if hide:
-            self.hide()
+            self.set_visible(False)
 
     def on_map(self, window):
         surface = self.get_surface()

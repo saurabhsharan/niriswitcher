@@ -242,29 +242,7 @@ class AnimateScrollToWidget:
         GLib.idle_add(animate_scroll_to_application)
 
 
-class GenericTransition:
-    """
-    Represents a generic transition animation between two values, applying an
-    easing function over a specified duration.
-
-    This class manages the timing and application of a transition, calling a
-    setter function to update the animated value, and optionally invoking a
-    method before or after the transition. The transition uses an ease-out
-    cubic function for smooth animation.
-
-    Attributes:
-        initial (float): The starting value of the transition.
-        target (float): The ending value of the transition.
-        method (callable): The function to call before or after the transition,
-            depending on the 'before' flag.
-        setter (callable): The function used to update the animated value
-            during the transition.
-        before (bool): If True, the method is called before the transition; if
-        False, after.
-        duration (int): The duration of the transition in milliseconds.
-
-    """
-
+class WidgetPropertyAnimation:
     def __init__(
         self, method, *, before, setter, initial, target, duration=200, easing=None
     ):
@@ -279,37 +257,49 @@ class GenericTransition:
         self.easing = easing
 
     def __call__(self, *args, **kwargs):
-        self._current = self.initial
+        before = self.before(*args, **kwargs)
+        if hasattr(self.duration, "__call__"):
+            duration = self.duration(*args, **kwargs)
+        else:
+            duration = self.duration
+
+        if not before:
+            initial, target = self.target, self.initial
+        else:
+            initial = self.initial
+            target = self.target
+
+        self._current = initial
         easing = self.easing
         if easing is None:
             easing = ease_out_cubic
 
-        if self.duration == 0:
-            self.setter(self.target)
+        if duration == 0:
+            self.setter(target)
             self.method(*args, **kwargs)
             return
 
-        if self.before:
-            self.setter(self.initial)
+        if before:
+            self.setter(initial)
             self.method(*args, **kwargs)
 
         def idle_add():
-            delta = self.target - self.initial
+            delta = target - initial
             start_time = time.monotonic()
 
             def do_animation():
                 elapsed = (time.monotonic() - start_time) * 1000
-                t = min(elapsed / self.duration, 1.0)
+                t = min(elapsed / duration, 1.0)
                 eased_t = easing(t)
-                self._current = self.initial + delta * eased_t
+                self._current = initial + delta * eased_t
                 if t < 1.0:
                     self.setter(self._current)
                     return True
                 else:
                     self._timer_id = None
                     self._current = None
-                    self.setter(self.target)
-                    if not self.before:
+                    self.setter(target)
+                    if not before:
                         self.method(*args, **kwargs)
                     return False
 

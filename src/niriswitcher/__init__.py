@@ -36,7 +36,7 @@ def main():
 
     def signal_handler(signum, frame):
         if should_present():
-            app.window.present()
+            app.window.set_visible(True)
 
     Gtk.StyleContext.add_provider_for_display(
         Gdk.Display.get_default(),

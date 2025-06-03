@@ -172,7 +172,7 @@ most recently used workspace"
 
 ### pkill
 
-> !WARNING
+> [!WARNING]
 > Using `USR1` to trigger `niriswitcher` has been deprecated in favour of DBus,
 
 ```kdl

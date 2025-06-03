@@ -236,9 +236,9 @@ class NiriWindowManager:
             elif workspace_activated := obj.get("WorkspaceActivated"):
                 with self.lock:
                     self.active_workspace_id = workspace_activated["id"]
-                    self._trigger(
-                        "workspace-activated", self.workspaces[self.active_workspace_id]
-                    )
+                    workspace = self.workspaces[self.active_workspace_id]
+                    workspace.last_focus_time = time.time()
+                    self._trigger("workspace-activated", workspace)
             elif workspace_urgency_changed := obj.get("WorkspaceUrgencyChanged"):
                 with self.lock:
                     workspace_id = workspace_urgency_changed["id"]

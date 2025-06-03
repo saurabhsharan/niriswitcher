@@ -37,6 +37,7 @@ An application switcher for niri.
 %license LICENSE
 %doc README.md
 %{_bindir}/niriswitcher
+%{_bindir}/niriswitcherctl
 %{python3_sitelib}/niriswitcher*
 
 %changelog

@@ -3,6 +3,14 @@
 An application switcher for niri, with support for workspaces and automatic light and dark mode.
 ![Image](https://github.com/user-attachments/assets/33ad582f-4540-428a-8fbc-849c35c7ec76)
 
+## Features
+
+- Fast, beautiful application switching for [niri](https://github.com/YaLTeR/niri)
+- Workspace-aware: switch apps in current or all workspaces
+- Automatic light/dark mode with easy theming via CSS
+- Customizable keybindings and appearance (icon size, window width, animation)
+- MRU sorting and smooth animations
+
 ## Screencast
 
 https://github.com/user-attachments/assets/81beb414-6367-4d6f-aa2b-9c55534913b3
@@ -131,15 +139,48 @@ spawn-at-startup "niriswitcher"
 
 Next, we add keybindings to send the `USR1` signal to `niriswitcher` on `Alt+Tab` and `Alt+Shift+Tab`.
 
+> [!NOTE]
+> Remember to synchronize the keybinding set in Niri, with the one set for `niriswitcher`. For example, if you use `Mod+Tab` to trigger `niriswitcher` ensure that `modifier=Mod` in `config.toml`.
+
+You can either use `niriswitcherctl`, `USR1` signal (deprecated) or direct DBus
+calls to trigger `niriswitcher`.
+
+### niriswitcherctl
+
+Due to Python's slow startup time, this method introduces a slight delay of a few milliseconds (generally unnoticeable, but it increases the chance that `niriswitcher` may not be dismissed upon `Alt` release)
+
+```kdl
+bind {
+    Alt+Tab repeat=false { spawn "niriswitcherctl" "show" "--window"; }
+    Alt+Shift+Tab repeat=false { spawn "niriswitcherctl" "show" "--window"; }
+    Alt+Grave repeat=false { spawn "niriswitcherctl" "show" "--workspace"; }
+    Alt+Shift+Grave repeat=false { spawn "niriswitcherctl" "show" "--workspace"; }
+}
+```
+
+### gdbus
+
+This is generally a few milliseconds faster than `niriswitcherctl`.
+
+```kdl
+    Alt+Tab repeat=false { spawn "gdbus" "call" "--session" "--dest" "io.github.isaksamsten.Niriswitcher" "--object-path" "/io/github/isaksamsten/Niriswitcher" "--method" "io.github.isaksamsten.Niriswitcher.application" ; }
+    Alt+Shift+Tab repeat=false { spawn "gdbus" "call" "--session" "--dest" "io.github.isaksamsten.Niriswitcher" "--object-path" "/io/github/isaksamsten/Niriswitcher" "--method" "io.github.isaksamsten.Niriswitcher.application" ; }
+```
+
+Change `.application` to `.workspace` if you want to bind "next application in
+most recently used workspace"
+
+### pkill
+
+> !WARNING
+> Using `USR1` to trigger `niriswitcher` has been deprecated in favour of DBus,
+
 ```kdl
 bind {
     Alt+Tab repeat=false { spawn "pkill" "-USR1" "niriswitcher"; }
     Alt+Shift+Tab repeat=false { spawn "pkill" "-USR1" "niriswitcher"; }
 }
 ```
-
-> [!NOTE]
-> Remember to synchronize the keybinding set in Niri, with the one set for `niriswitcher`. For example, if you use `Mod+Tab` to trigger `niriswitcher` ensure that `modifier=Mod` in `config.toml` (see below).
 
 ### Keybindings
 
@@ -175,6 +216,7 @@ The configuration file is a simple `.toml`-file in
 
 ```toml
 separate_workspaces = true
+workspace_mru_sort = false
 double_click_to_hide = false
 center_on_focus = false
 

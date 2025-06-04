@@ -10,8 +10,8 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
-niriswitcher = "niriswitcher:main"
-niriswitcherctl = "niriswitcher:main_ctl"
+niriswitcher = "niriswitcher:daemon"
+niriswitcherctl = "niriswitcher:control"
 
 [build-system]
 requires = ["hatchling"]

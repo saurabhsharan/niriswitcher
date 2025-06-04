@@ -1,4 +1,4 @@
-def main():
+def daemon():
     from ctypes import CDLL
 
     CDLL("libgtk4-layer-shell.so.0")
@@ -18,6 +18,7 @@ def main():
         DEFAULT_DARK_CSS_PROVIDER,
         DEFAULT_DARK_USER_CSS_PROVIDER,
     )
+
     from ._app import NiriswicherApp
     from ._wm import NiriWindowManager
     from gi.repository import Gtk, Gdk
@@ -85,7 +86,7 @@ def main():
     app.run()
 
 
-def main_ctl():
+def control():
     import sys
     import argparse
     from gi.repository import Gio, GLib

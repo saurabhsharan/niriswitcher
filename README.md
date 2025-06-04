@@ -206,13 +206,16 @@ The default mappings and modifier key can be configured in the `config.toml` fil
 - The scroll animation speed (set to 0 to disable)
 - If single click change application without hiding the switcher (double
   clicking an application changes focus and hides the switcher)
-- If `separate_workspaces` is set to true, the application switcher will
+- If `separate_workspaces` is set to `true`, the application switcher will
   show windows from the current workspace and enable workspace navigation. If
   `false`, the switcher will show applications from all workspaces and disable
   workspace navigation.
+- Sort order of workspaces i the switcher. If `workspace_mru_sort` is set to
+  `true` the workspaces are sorted in order of last used; otherwise in order of
+  their workspace index (as in Niri moving up and down).
 
 The configuration file is a simple `.toml`-file in
-`$XDG_CONFIG_HOME/niriswitcher/config.toml`. This is the default config:
+`$XDG_CONFIG_HOME/niriswitcher/config.toml`. This is the default configuration:
 
 ```toml
 separate_workspaces = true

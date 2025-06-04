@@ -2,11 +2,13 @@ import json
 import operator
 import os
 import socket
-import threading
 import time
 
-from collections import defaultdict
-from gi.repository import Gio, GObject
+from gi.repository import Gio, GObject, GLib
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Window(GObject.Object):
@@ -126,177 +128,186 @@ def niri_request(request):
             socket_file.readline()  # Avoid broken pipe in niri
 
 
-class NiriWindowManager:
+class NiriWindowManager(GObject.Object):
+    __gsignals__ = {
+        "window-closed": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
+        "window-opened": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
+        "window-focus-changed": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
+        "workspace-activated": (GObject.SignalFlags.RUN_FIRST, None, (Workspace,)),
+        "workspace-urgency-changed": (
+            GObject.SignalFlags.RUN_FIRST,
+            None,
+            (Workspace,),
+        ),
+        "window-urgency-changed": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
+    }
+
+    active_workspace = GObject.Property(type=int, default=-1)
+    active_window = GObject.Property(type=int, default=-1)
+
     def __init__(self):
         super().__init__()
-        self._signals = defaultdict(list)
         self.windows: dict[int, Window] = {}
         self.workspaces: dict[int, Workspace] = {}
-        self.active_workspace_id: int | None = None
-        self.active_window_id: int | None = None
-        self.lock = threading.Lock()
-        self._windows_loaded = threading.Event()
-        self._workspaces_loaded = threading.Event()
-        threading.Thread(target=self.start_track_niri_windows, daemon=True).start()
+        self._windows_loaded = False
+        self._workspaces_loaded = False
+        self._n_failed_connection_attempts = 0
+        self._start_socket_connection()
 
-    def connect(self, signal, callback, *args):
-        with self.lock:
-            self._signals[signal].append((callback, args))
-            return len(self._signals[signal])
+    def _start_socket_connection(self):
+        socket_path = os.environ.get("NIRI_SOCKET")
+        try:
+            address = Gio.UnixSocketAddress.new(socket_path)
+            client = Gio.SocketClient.new()
 
-    def disconnect(self, signal, id=None):
-        with self.lock:
-            if signal not in self._signals:
-                return
+            self.socket_connection = client.connect(address, None)
+            self.input_stream = self.socket_connection.get_input_stream()
+            self.data_input_stream = Gio.DataInputStream.new(self.input_stream)
+            self.output_stream = self.socket_connection.get_output_stream()
 
-            if id is None:
-                del self._signals[signal]
-            else:
-                if 0 <= id < len(self._signals[signal]):
-                    del self._signals[signal][id]
-
-    # Should only be used when the lock is held
-    def _trigger(self, signal, *payload):
-        if callbacks := self._signals.get(signal):
-            for callback, args in callbacks:
-                callback(*payload, *args)
-
-    def start_track_niri_windows(self):
-        with connect_niri_socket() as niri_socket:
-            with niri_socket.makefile("rw") as socket_file:
-                socket_file.write('"EventStream"\n')
-                socket_file.flush()
-                niri_socket.shutdown(socket.SHUT_WR)
-                self.track_niri_windows(socket_file)
+            self.output_stream.write_all(b'"EventStream"\n', None)
+            self._n_failed_connection_attempts = 0
+            self._queue_next_line_read()
+        except GLib.GError:
+            logger.error("Error reading from socket. Is NIRI_SOCKET set?")
 
     def on_workspaces_changed(self, workspace_changed):
-        with self.lock:
-            for workspace in workspace_changed["workspaces"]:
-                workspace_id = workspace["id"]
-                if workspace["is_focused"]:
-                    self.active_workspace_id = workspace_id
+        for workspace in workspace_changed["workspaces"]:
+            workspace_id = workspace["id"]
+            if workspace["is_focused"]:
+                self.active_workspace = workspace_id
 
-                self.workspaces[workspace_id] = Workspace(workspace)
-            self._workspaces_loaded.set()
+            self.workspaces[workspace_id] = Workspace(workspace)
+        self._workspaces_loaded = True
 
     def on_windows_changed(self, windows_changed):
-        with self.lock:
-            self.windows.clear()
-            now = time.time()
-            for window in windows_changed["windows"]:
-                last_focus_time = now
-                window_id = window["id"]
-                if window["is_focused"]:
-                    last_focus_time = last_focus_time + 1
-                    self.active_window_id = window_id
-                window = Window(window, last_focus_time=last_focus_time)
-                self.windows[window_id] = window
-            self._windows_loaded.set()
+        self.windows.clear()
+        now = time.time()
+        for window in windows_changed["windows"]:
+            last_focus_time = now
+            window_id = window["id"]
+            if window["is_focused"]:
+                last_focus_time = last_focus_time + 1
+                self.active_window = window_id
+            window = Window(window, last_focus_time=last_focus_time)
+            self.windows[window_id] = window
+        self._windows_loaded = True
 
-    def track_niri_windows(self, socket_file):
-        for line in socket_file:
-            obj = json.loads(line)
-            if workspace_changed := obj.get("WorkspacesChanged"):
-                self.on_workspaces_changed(workspace_changed)
-            elif windows_changed := obj.get("WindowsChanged"):
-                self.on_windows_changed(windows_changed)
-            elif window_closed := obj.get("WindowClosed"):
-                window_id = window_closed["id"]
-                with self.lock:
-                    if window_id in self.windows:
-                        window = self.windows[window_id]
-                        del self.windows[window_id]
-                        self._trigger("window-closed", window)
-            elif opened_or_changed := obj.get("WindowOpenedOrChanged"):
-                with self.lock:
-                    window = opened_or_changed["window"]
-                    window_id = window["id"]
-                    if exists := self.windows.get(window_id):
-                        exists.update(window)
-                    else:
-                        self.windows[window_id] = Window(window)
-                        self._trigger("window-opened", self.windows[window_id])
+    def _queue_next_line_read(self):
+        self.data_input_stream.read_line_async(
+            GLib.PRIORITY_DEFAULT, None, self._on_line_read
+        )
 
-            elif workspace_window := obj.get("WorkspaceActiveWindowChanged"):
-                workspace_id = workspace_window["workspace_id"]
-                with self.lock:
-                    self.active_workspace_id = workspace_id
-                    window_id = workspace_window["active_window_id"]
-                    if window_id in self.windows:
-                        self.active_window_id = window_id
-                        self.windows[window_id].last_focus_time = time.time()
-                        self._trigger("window-focus-changed", self.windows[window_id])
-            elif window_focus_changed := obj.get("WindowFocusChanged"):
-                with self.lock:
-                    window_id = window_focus_changed["id"]
-                    if window_id in self.windows:
-                        self.windows[window_id].last_focus_time = time.time()
-                        self.active_window_id = window_id
-                        self._trigger("window-focus-changed", self.windows[window_id])
-            elif workspace_activated := obj.get("WorkspaceActivated"):
-                with self.lock:
-                    self.active_workspace_id = workspace_activated["id"]
-                    workspace = self.workspaces[self.active_workspace_id]
-                    workspace.last_focus_time = time.time()
-                    self._trigger("workspace-activated", workspace)
-            elif workspace_urgency_changed := obj.get("WorkspaceUrgencyChanged"):
-                with self.lock:
-                    workspace_id = workspace_urgency_changed["id"]
-                    if workspace := self.workspaces.get(workspace_id):
-                        workspace.is_urgent = workspace_urgency_changed["urgent"]
-                        self._trigger("workspace-urgency-changed", workspace)
-            elif window_urgency_changed := obj.get("WindowUrgencyChanged"):
-                with self.lock:
-                    window_id = window_urgency_changed["id"]
-                    if window := self.windows.get(window_id):
-                        window.is_urgent = window_urgency_changed["urgent"]
-                        self._trigger("window-urgency-changed", window)
+    def _on_line_read(self, stream, result):
+        try:
+            line = stream.read_line_finish_utf8(result)[0]
+            if line:
+                obj = json.loads(line)
+                self._process_event(obj)
+
+            self._queue_next_line_read()
+        except GLib.Error:
+            self._n_failed_connection_attempts += 1
+            logger.debug(
+                "Error reading from the socket. Retrying %d/3...",
+                self._n_failed_connection_attempts,
+                exc_info=True,
+            )
+            if self._n_failed_connection_attempts < 3:
+                self._start_socket_connection()
+            else:
+                logger.error("Error reading from socket. Is NIRI_SOCKET set?")
+
+    def _process_event(self, obj):
+        if workspace_changed := obj.get("WorkspacesChanged"):
+            self.on_workspaces_changed(workspace_changed)
+        elif windows_changed := obj.get("WindowsChanged"):
+            self.on_windows_changed(windows_changed)
+        elif window_closed := obj.get("WindowClosed"):
+            window_id = window_closed["id"]
+            if window_id in self.windows:
+                window = self.windows[window_id]
+                del self.windows[window_id]
+                self.emit("window-closed", window)
+        elif opened_or_changed := obj.get("WindowOpenedOrChanged"):
+            window = opened_or_changed["window"]
+            window_id = window["id"]
+            if exists := self.windows.get(window_id):
+                exists.update(window)
+            else:
+                self.windows[window_id] = Window(window)
+                self.emit("window-opened", self.windows[window_id])
+        elif workspace_window := obj.get("WorkspaceActiveWindowChanged"):
+            workspace_id = workspace_window["workspace_id"]
+            self.active_workspace = workspace_id
+            window_id = workspace_window["active_window_id"]
+            if window_id in self.windows:
+                self.active_window = window_id
+                self.windows[window_id].last_focus_time = time.time()
+                self.emit("window-focus-changed", self.windows[window_id])
+        elif window_focus_changed := obj.get("WindowFocusChanged"):
+            window_id = window_focus_changed["id"]
+            if window_id in self.windows:
+                self.windows[window_id].last_focus_time = time.time()
+                self.active_window = window_id
+                self.emit("window-focus-changed", self.windows[window_id])
+        elif workspace_activated := obj.get("WorkspaceActivated"):
+            self.active_workspace = workspace_activated["id"]
+            workspace = self.workspaces[self.active_workspace]
+            workspace.last_focus_time = time.time()
+            self.emit("workspace-activated", workspace)
+        elif workspace_urgency_changed := obj.get("WorkspaceUrgencyChanged"):
+            workspace_id = workspace_urgency_changed["id"]
+            if workspace := self.workspaces.get(workspace_id):
+                workspace.is_urgent = workspace_urgency_changed["urgent"]
+                self.emit("workspace-urgency-changed", workspace)
+        elif window_urgency_changed := obj.get("WindowUrgencyChanged"):
+            window_id = window_urgency_changed["id"]
+            if window := self.windows.get(window_id):
+                window.is_urgent = window_urgency_changed["urgent"]
+                self.emit("window-urgency-changed", window)
 
     def get_active_workspace(self):
-        self._workspaces_loaded.wait()
-        with self.lock:
-            return self.workspaces[self.active_workspace_id]
+        if not self._workspaces_loaded:
+            return None
+        return self.workspaces[self.active_workspace]
 
     def get_n_windows(self, active_workspace=True):
-        self._windows_loaded.wait()
-        with self.lock:
-            if not active_workspace:
-                return len(self.windows)
+        if not self._windows_loaded:
+            return 0
+        if not active_workspace:
+            return len(self.windows)
 
-            return len(
-                [
-                    window
-                    for window in self.windows.values()
-                    if window.workspace_id == self.active_workspace_id
-                ]
-            )
+        return len(
+            [
+                window
+                for window in self.windows.values()
+                if window.workspace_id == self.active_workspace
+            ]
+        )
 
     def get_windows(self, active_workspace=True, workspace_id=None) -> list[Window]:
-        with self.lock:
-            windows = self.windows.values()
-            if active_workspace and workspace_id is None:
-                windows = filter(
-                    lambda w: w.workspace_id == -1
-                    or w.workspace_id == self.active_workspace_id,
-                    windows,
-                )
-            if workspace_id is not None:
-                windows = filter(
-                    lambda w: w.workspace_id == -1 or w.workspace_id == workspace_id,
-                    windows,
-                )
-
-            return sorted(
-                windows, key=operator.attrgetter("last_focus_time"), reverse=True
+        windows = self.windows.values()
+        if active_workspace and workspace_id is None:
+            windows = filter(
+                lambda w: w.workspace_id == -1
+                or w.workspace_id == self.active_workspace,
+                windows,
+            )
+        if workspace_id is not None:
+            windows = filter(
+                lambda w: w.workspace_id == -1 or w.workspace_id == workspace_id,
+                windows,
             )
 
+        return sorted(windows, key=operator.attrgetter("last_focus_time"), reverse=True)
+
     def get_workspaces(self, mru=False):
-        with self.lock:
-            if mru:
-                return sorted(
-                    self.workspaces.values(),
-                    key=operator.attrgetter("last_focus_time"),
-                    reverse=True,
-                )
-            else:
-                return sorted(self.workspaces.values(), key=operator.attrgetter("idx"))
+        if mru:
+            return sorted(
+                self.workspaces.values(),
+                key=operator.attrgetter("last_focus_time"),
+                reverse=True,
+            )
+        else:
+            return sorted(self.workspaces.values(), key=operator.attrgetter("idx"))

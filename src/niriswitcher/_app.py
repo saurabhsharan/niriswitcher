@@ -1,6 +1,10 @@
-import operator
+from __future__ import annotations
 
-from gi.repository import Gdk, Gtk, Pango, Adw, Gio, GLib
+import logging
+import operator
+from typing import TYPE_CHECKING
+
+from gi.repository import Adw, Gdk, Gio, GLib, Gtk, Pango
 from gi.repository import Gtk4LayerShell as LayerShell
 
 from ._config import config
@@ -10,6 +14,11 @@ from ._widgets import (
     WorkspaceStack,
     WorkspaceView,
 )
+
+if TYPE_CHECKING:
+    from ._wm import NiriWindowManager
+
+logger = logging.getLogger(__name__)
 
 
 class KeybindingAction:
@@ -40,13 +49,15 @@ class KeybindingAction:
         return False
 
     def execute(self):
-        self.action()
+        try:
+            self.action()
+        except Exception:
+            logger.debug("Failed to execute %s", self.action.__name__, exc_info=True)
 
 
 class NiriswitcherWindow(Gtk.Window):
-    def __init__(self, app, window_manager):
+    def __init__(self, app, window_manager: NiriWindowManager):
         super().__init__(application=app, title="niriswitcher")
-        self.config = config
         self.window_manager = window_manager
 
         def show_hide_duration(visible):
@@ -155,21 +166,21 @@ class NiriswitcherWindow(Gtk.Window):
                 keybinding.execute()
                 break
 
-    def on_window_closed(self, window):
+    def on_window_closed(self, wm, window):
         for workspace_view in self.workspace_stack:
             if workspace_view.remove_by_window_id(window.id):
                 if workspace_view.is_empty():
                     self.set_visible(False)
                 return
 
-    def on_workspace_activated(self, workspace):
+    def on_workspace_activated(self, wm, workspace):
         if self.is_visible():
             self.workspace_indicator.select_by_workspace_id(workspace.id)
 
     def on_workspace_selection_changed(self, widget, workspace, animate):
         self.current_workspace_name.set_label(workspace.identifier)
 
-    def on_window_focus_changed(self, window):
+    def on_window_focus_changed(self, vm, window):
         workspace_view = self.workspace_stack.get_visible_child()
         for application_view in workspace_view:
             if application_view.window.id == window.id:
@@ -198,9 +209,9 @@ class NiriswitcherWindow(Gtk.Window):
         surface.inhibit_system_shortcuts(None)
 
     def on_hide(self, widget):
-        self.window_manager.disconnect("window-closed")
-        self.window_manager.disconnect("window-focus-changed")
-        self.window_manager.disconnect("workspace-activated")
+        self.window_manager.disconnect_by_func(self.on_window_closed)
+        self.window_manager.disconnect_by_func(self.on_window_focus_changed)
+        self.window_manager.disconnect_by_func(self.on_workspace_activated)
         for child in list(self.workspace_stack):
             self.workspace_stack.remove(child)
 
@@ -430,6 +441,7 @@ class NiriswicherApp(Adw.Application):
                 self.window.set_visible(True)
                 invocation.return_value(None)
         except Exception as e:
+            logger.exception("Failed to handle DBus message")
             invocation.return_error_literal(
                 Gio.dbus_error_quark(), Gio.DBusError.FAILED, str(e)
             )
@@ -439,7 +451,7 @@ class NiriswicherApp(Adw.Application):
             try:
                 connection.unregister_object(self._dbus_registration_id)
             except Exception:
-                pass
+                logger.debug("Failed to unregister DBus", exc_info=True)
             finally:
                 self._dbus_registration_id = None
 

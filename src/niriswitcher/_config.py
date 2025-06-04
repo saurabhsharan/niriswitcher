@@ -80,7 +80,7 @@ class AnimationConfig:
     activate: ActivateAnimationConfig = ActivateAnimationConfig()
 
 
-@dataclass
+@dataclass(frozen=True)
 class AppearanceConfig:
     icon_size: int = 128
     max_width: int = 800
@@ -92,9 +92,9 @@ class AppearanceConfig:
 
 @dataclass(frozen=True)
 class Config:
-    general: GeneralConfig
-    keys: KeysConfig
-    appearance: AppearanceConfig
+    general: GeneralConfig = GeneralConfig()
+    keys: KeysConfig = KeysConfig()
+    appearance: AppearanceConfig = AppearanceConfig()
 
 
 def get_modifier_as_mask(modifier):
@@ -204,14 +204,18 @@ def parse_accelerator_key(binding, default_modifier):
         raise ValueError(f"unable to parse keys: {binding}")
 
 
-def load_configuration(config_path=None):
+def load_configuration(config_path: str = None) -> Config:
     config_home = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
     config_dir = os.path.join(config_home, "niriswitcher")
     if config_path is None:
         config_path = os.path.join(config_dir, "config.toml")
     if os.path.isfile(config_path):
-        with open(config_path, "rb") as f:
-            config = tomllib.load(f)
+        try:
+            with open(config_path, "rb") as f:
+                config = tomllib.load(f)
+        except tomllib.TOMLDecodeError as e:
+            logger.warning(f"Error parsing config file {config_path!r}: {e}")
+            return Config()
     else:
         config = {}
 
@@ -359,5 +363,5 @@ DEFAULT_DARK_CSS_PROVIDER = load_system_style(filename="style-dark.css")
 DEFAULT_USER_CSS_PROVIDER = load_user_style(filename="style.css")
 DEFAULT_DARK_USER_CSS_PROVIDER = load_user_style(filename="style-dark.css")
 
-config = load_configuration()
+config: Config = load_configuration()
 logging.basicConfig(level=config.general.log_level)

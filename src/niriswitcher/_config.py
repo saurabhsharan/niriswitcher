@@ -1,16 +1,18 @@
-import os
 import importlib
 import importlib.resources
+import logging
+import os
 import sys
-import tomllib
-from gi.repository import Gtk, Gdk
 from dataclasses import dataclass
 
+import tomllib
+from gi.repository import Gtk, Gdk
+
 from ._anim import (
+    ease_in_out_cubic,
+    ease_out_cubic,
     get_easing_function,
     get_transition_function,
-    ease_out_cubic,
-    ease_in_out_cubic,
 )
 
 
@@ -20,6 +22,7 @@ class GeneralConfig:
     workspace_mru_sort: bool = True
     double_click_to_hide: bool = False
     center_on_focus: bool = False
+    log_level: str = "WARN"
 
 
 @dataclass(frozen=True)
@@ -213,11 +216,16 @@ def load_configuration(config_path=None):
     double_click_to_hide = config.get("double_click_to_hide", False)
     center_on_focus = config.get("center_on_focus", False)
     workspace_mru_sort = config.get("workspace_mru_sort", False)
+    log_level = config.get("log_level", "WARN")
+    if log_level not in ("WARN", "INFO", "DEBUG", "ERROR"):
+        log_level = "DEBUG"
+
     general = GeneralConfig(
         separate_workspaces=separate_workspaces,
         double_click_to_hide=double_click_to_hide,
         center_on_focus=center_on_focus,
         workspace_mru_sort=workspace_mru_sort,
+        log_level=log_level,
     )
 
     keys_section = config.get("keys", {})
@@ -339,3 +347,4 @@ DEFAULT_USER_CSS_PROVIDER = load_user_style(filename="style.css")
 DEFAULT_DARK_USER_CSS_PROVIDER = load_user_style(filename="style-dark.css")
 
 config = load_configuration()
+logging.basicConfig(level=config.general.log_level)

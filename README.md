@@ -219,6 +219,7 @@ separate_workspaces = true
 workspace_mru_sort = false
 double_click_to_hide = false
 center_on_focus = false
+log_level = "WARN"
 
 [appearance]
 icon_size = 128

@@ -1,3 +1,4 @@
+import logging
 import time
 
 from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
@@ -6,6 +7,8 @@ from ._anim import ease_in_out_cubic, ease_out_cubic
 from ._wm import Window, Workspace
 
 from ._config import config
+
+logger = logging.getLogger(__name__)
 
 
 class ApplicationView(Gtk.Box):
@@ -154,11 +157,13 @@ def new_app_icon_or_default(app_info: Gio.DesktopAppInfo, size):
 
     icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
     if icon_theme.has_icon("application-x-executable"):
+        logger.debug("Can't find icon for %s, using default fallback", icon_name)
         gicon = Gio.ThemedIcon.new("application-x-executable")
         image = Gtk.Image.new_from_gicon(gicon)
         image.set_pixel_size(size)
         return image
 
+    logger.error("Can't find icon for %s, using empty image", icon_name)
     image = Gtk.Image()
     image.set_pixel_size(size)
     return image

@@ -296,7 +296,7 @@ def load_configuration(config_path=None):
 
     duration = 200
     easing = "ease-out-cubic"
-    if len(hide_section) > 1:
+    if len(hide_section) > 0:
         logger.warning(
             "The configuration option appearance.animation.hide has been "
             "renamed to reveal, with show_duration and hide_duration. "

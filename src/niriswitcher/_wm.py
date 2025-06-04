@@ -168,8 +168,9 @@ class NiriWindowManager(GObject.Object):
             self.output_stream.write_all(b'"EventStream"\n', None)
             self._n_failed_connection_attempts = 0
             self._queue_next_line_read()
-        except GLib.GError:
+        except GLib.GError as e:
             logger.error("Error reading from socket. Is NIRI_SOCKET set?")
+            raise e
 
     def on_workspaces_changed(self, workspace_changed):
         for workspace in workspace_changed["workspaces"]:

@@ -2,7 +2,6 @@ import importlib
 import importlib.resources
 import logging
 import os
-import sys
 from dataclasses import dataclass
 
 import tomllib
@@ -14,6 +13,9 @@ from ._anim import (
     get_easing_function,
     get_transition_function,
 )
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARN)
 
 
 @dataclass(frozen=True)
@@ -259,6 +261,13 @@ def load_configuration(config_path=None):
     appearance_max_width = appearance_section.get("max_width", 800)
     appearance_min_width = appearance_section.get("min_width", 600)
     appearance_system_theme = appearance_section.get("system_theme", "dark")
+    if appearance_system_theme not in ("light", "dark", "auto"):
+        logger.warning(
+            "appearance.system_theme is set to %s (valid options "
+            "are 'light', 'dark' or 'auto')"
+        )
+        appearance_system_theme = "auto"
+
     appearance_workspace_format = appearance_section.get(
         "workspace_format", "{output}-{idx}"
     )
@@ -288,11 +297,10 @@ def load_configuration(config_path=None):
     duration = 200
     easing = "ease-out-cubic"
     if len(hide_section) > 1:
-        print(
+        logger.warning(
             "The configuration option appearance.animation.hide has been "
             "renamed to reveal, with show_duration and hide_duration. "
             "Support for hide will be removed in 1.0.",
-            file=sys.stderr,
         )
         duration = hide_section.get("duration", 200)
         easing = hide_section.get("easing", "ease-out-cubic")

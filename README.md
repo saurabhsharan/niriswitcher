@@ -226,6 +226,7 @@ icon_size = 128
 max_width = 800
 min_width = 600
 system_theme = "dark" # auto or light
+workspace_format = "{output}-{idx}" # {output}, {idx}, {name}
 
 [appearance.animation.reveal]
 hide_duration = 200

@@ -610,7 +610,7 @@ class WorkspaceIndicator(Gtk.Box):
 
     def on_pressed(self, widget, workspace):
         self.select_by_workspace_id(workspace.id)
-        self.emit("selection-changed", workspace, None)
+        self.emit("selection-changed", workspace, False)
 
     def select_by_workspace_id(self, workspace_id, animate=True):
         for current in self:

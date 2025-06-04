@@ -85,6 +85,7 @@ class AppearanceConfig:
     min_width: int = 600
     animation: AnimationConfig = AnimationConfig()
     system_theme: str = "dark"  # auto, light
+    workspace_format: str = "{output}-{idx}"
 
 
 @dataclass(frozen=True)
@@ -258,6 +259,9 @@ def load_configuration(config_path=None):
     appearance_max_width = appearance_section.get("max_width", 800)
     appearance_min_width = appearance_section.get("min_width", 600)
     appearance_system_theme = appearance_section.get("system_theme", "dark")
+    appearance_workspace_format = appearance_section.get(
+        "workspace_format", "{output}-{idx}"
+    )
 
     animation_section = appearance_section.get("animation", {})
     resize_section = animation_section.get("resize", {})
@@ -311,6 +315,7 @@ def load_configuration(config_path=None):
         min_width=appearance_min_width,
         animation=animation,
         system_theme=appearance_system_theme,
+        workspace_format=appearance_workspace_format,
     )
 
     return Config(general=general, keys=keys, appearance=appearance)

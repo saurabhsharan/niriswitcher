@@ -16,7 +16,7 @@ from ._widgets import (
 )
 
 if TYPE_CHECKING:
-    from ._wm import NiriWindowManager
+    from ._wm import NiriWindowManager, Workspace
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class NiriswitcherWindow(Gtk.Window):
 
         self.current_workspace_name = Gtk.Label()
         self.current_workspace_name.set_ellipsize(Pango.EllipsizeMode.END)
-        self.current_workspace_name.set_width_chars(10)
+        self.current_workspace_name.set_max_width_chars(-1)
         self.current_workspace_name.set_halign(Gtk.Align.END)
         self.current_workspace_name.set_name("workspace-name")
 
@@ -100,11 +100,17 @@ class NiriswitcherWindow(Gtk.Window):
         )
 
         top_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
-        left_dummy = Gtk.Label()
-        left_dummy.set_name("left-dummy")
-        left_dummy.set_halign(Gtk.Align.START)
-        left_dummy.set_width_chars(10)
-        top_bar.append(left_dummy)
+        left_margin = Gtk.Box()
+        left_margin.set_halign(Gtk.Align.START)
+
+        def sync_width(label, param):
+            measure = self.current_workspace_name.measure(
+                Gtk.Orientation.HORIZONTAL, -1
+            )
+            left_margin.set_size_request(measure.natural, -1)
+
+        self.current_workspace_name.connect("notify::label", sync_width)
+        top_bar.append(left_margin)
         top_bar.append(self.current_application_title)
         top_bar.append(self.current_workspace_name)
         top_bar.set_hexpand(True)
@@ -175,8 +181,22 @@ class NiriswitcherWindow(Gtk.Window):
         if self.is_visible():
             self.workspace_indicator.select_by_workspace_id(workspace.id)
 
-    def on_workspace_selection_changed(self, widget, workspace, animate):
-        self.current_workspace_name.set_label(workspace.identifier)
+    def on_workspace_selection_changed(
+        self, widget: Gtk.Widget, workspace: Workspace, animate: bool
+    ):
+        try:
+            self.current_workspace_name.set_label(
+                config.appearance.workspace_format.format(
+                    output=workspace.output,
+                    idx=workspace.idx,
+                    name=workspace.name,
+                )
+            )
+        except Exception:
+            self.current_workspace_name.set_label(workspace.identifier)
+            logger.debug(
+                "Invalid format specification for appearance.workspace_format, using default"
+            )
 
     def on_window_focus_changed(self, vm, window):
         workspace_view = self.workspace_stack.get_visible_child()

@@ -150,8 +150,6 @@ class NiriswitcherWindow(Gtk.Window):
     def on_key_released(self, controller, keyval, keycode, state):
         if keyval == config.keys.modifier:
             self.focus_selected_window()
-            return True
-        return False
 
     def on_key_pressed(self, controller, keyval, keycode, state):
         if keyval == Gdk.KEY_ISO_Left_Tab:

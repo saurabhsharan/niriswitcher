@@ -619,7 +619,7 @@ class WorkspaceIndicator(Gtk.Box):
                 break
 
     def select(self, indicator, animate=True):
-        if indicator is None:
+        if indicator is None or indicator is self.current:
             return
 
         if self.current is not None:

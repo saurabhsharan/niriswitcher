@@ -1,4 +1,4 @@
-%define version 0.5.2
+%define version 0.6.0
 
 Name:           niriswitcher
 Version:        %{version}
@@ -98,3 +98,34 @@ currently active output.
 
 * Thu May 22 Isak Samsten <isak@samsten.se> - 0.5.2-1
 - Fix a regression in the reveal animation
+
+* Wed June 5 Isak Samsten <isak@samsten.se> - 0.6.0-1
+- Improve logging and warn if the application is already running
+- Improve error message from config-parser
+- Don't trigger a workspace change event if the workspace does not change
+- Add support for configuring the workspace label
+- Properly terminate Niriswitcher if we can't connect to NIRI_SOCKET
+- Drop the use of threads and instead schedule socket operations on the Gtk
+  event loop
+- Enable support for controlling niriswitcher through DBus
+- Add a command `niriswitcherctl` to show niriswitcher. For example,
+  `niriswitcherctl show --window` opens niriswitcher with the (second)
+  most recently focused window (respecting general.separate_workspaces)
+  and `niriswitcherctl show --workspace` which selects the most recently
+  used application from the (second) most recently used workspace.
+- Enable support for starting niriswitcher with the second most recently
+  used workspace selected.
+- Support sorting workspace in most recently used order instead of index
+  order.
+- Correctly select the most recently used application when changing
+  workspace.
+- Make both the show and hide animation duration configurable. Deprecate
+  appearance.animation.hide in favour of appearance.animation.reveal which has
+  both show_duration and hide_duration. The appearance.animation.hide
+  configuration shows a warning for now but will be removed in 1.0
+- Two new configuration options:
+  - `workspace.mru_sort_in_workspace`: sort the workspaces in MRU when
+    starting by showing the most recent window.
+  - `workspace.mru_sort_across_workspace`: sort the workspaces in MRU when
+    starting by showing the most recent window in the most recent
+    workspace.

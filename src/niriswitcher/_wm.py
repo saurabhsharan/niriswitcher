@@ -173,12 +173,17 @@ class NiriWindowManager(GObject.Object):
             raise e
 
     def on_workspaces_changed(self, workspace_changed):
+        now = time.time()
         for workspace in workspace_changed["workspaces"]:
+            last_focus_time = now
             workspace_id = workspace["id"]
             if workspace["is_focused"]:
+                last_focus_time = last_focus_time + 1
                 self.active_workspace = workspace_id
 
-            self.workspaces[workspace_id] = Workspace(workspace)
+            self.workspaces[workspace_id] = Workspace(
+                workspace, last_focus_time=last_focus_time
+            )
         self._workspaces_loaded = True
 
     def on_windows_changed(self, windows_changed):

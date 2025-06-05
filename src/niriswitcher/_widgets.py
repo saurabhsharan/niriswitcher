@@ -124,11 +124,12 @@ def new_app_icon_or_default(app_info: Gio.DesktopAppInfo, size):
     Returns:
         Gtk.Image: A Gtk.Image widget displaying the application's icon or a default icon.
     """
-    icon_name = ""
+    app_name = "unknown-application"
+    icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
     if app_info:
+        app_name = app_info.get_name()
         icon = app_info.get_icon()
         if isinstance(icon, Gio.ThemedIcon):
-            icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
             icon_names = icon.get_names()
             for icon_name in icon_names:
                 if icon_theme.has_icon(icon_name):
@@ -156,15 +157,14 @@ def new_app_icon_or_default(app_info: Gio.DesktopAppInfo, size):
                 except Exception:
                     pass
 
-    icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
     if icon_theme.has_icon("application-x-executable"):
-        logger.debug("Can't find icon for %s, using default fallback", icon_name)
+        logger.debug("Can't find icon for %s, using default fallback", app_name)
         gicon = Gio.ThemedIcon.new("application-x-executable")
         image = Gtk.Image.new_from_gicon(gicon)
         image.set_pixel_size(size)
         return image
 
-    logger.error("Can't find icon for %s, using empty image", icon_name)
+    logger.error("Can't find icon for %s, using empty image", app_name)
     image = Gtk.Image()
     image.set_pixel_size(size)
     return image

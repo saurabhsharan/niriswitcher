@@ -339,9 +339,11 @@ class NiriswitcherWindow(Gtk.Window):
         self.workspace_indicator.select_by_workspace_id(
             active_workspace.id, animate=False
         )
-        self.workspace_stack.get_child_by_name(
+        current_workspace = self.workspace_stack.get_child_by_name(
             active_workspace.identifier
-        ).select_next()
+        )
+        if current_workspace is not None:
+            current_workspace.select_next()
 
     def focus_selected_window(self):
         workspace_view = self.workspace_stack.get_visible_child()

@@ -10,6 +10,10 @@
   --indicator-color: rgba(209, 209, 214, .95);
 }
 
+#niriswitcher.background {
+    background-color: transparent;
+}
+
 #niriswitcher {
   background-color: transparent;
   padding: 40px;

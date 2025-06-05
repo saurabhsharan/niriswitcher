@@ -15,7 +15,7 @@ from ._anim import (
 )
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARN)
+logging.basicConfig(level="WARN")
 
 
 @dataclass(frozen=True)
@@ -381,4 +381,3 @@ DEFAULT_USER_CSS_PROVIDER = load_user_style(filename="style.css")
 DEFAULT_DARK_USER_CSS_PROVIDER = load_user_style(filename="style-dark.css")
 
 config: Config = load_configuration()
-logging.basicConfig(level=config.general.log_level)

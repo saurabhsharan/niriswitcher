@@ -19,9 +19,17 @@ def daemon():
         DEFAULT_DARK_USER_CSS_PROVIDER,
     )
 
+    import logging
+
+    logging.getLogger().setLevel(config.general.log_level)
+
+    logger = logging.getLogger(__name__)
+
     from ._app import NiriswicherApp
     from ._wm import NiriWindowManager
     from gi.repository import Gtk, Gdk
+
+    logger.info("Starting niriswitcher daemon")
 
     def _set_dark_style():
         Gtk.StyleContext.add_provider_for_display(
@@ -83,7 +91,10 @@ def daemon():
 
     signal.signal(signal.SIGUSR1, signal_handler)
     app.register(None)
-    app.run()
+    if app.get_is_remote():
+        logger.info("niriswitcher is already running...")
+    else:
+        app.run()
 
 
 def control():

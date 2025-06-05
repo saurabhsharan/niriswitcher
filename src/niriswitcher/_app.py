@@ -305,14 +305,15 @@ class NiriswitcherWindow(Gtk.Window):
         self.workspace_stack.add_named(workspace_view, "all")
         workspace_view.select_current()
 
-    def populate_separate_workspaces(self, mru=False):
+    def populate_separate_workspaces(self, mru_sort=False, mru_select=False):
         self.workspace_indicator.set_visible(True)
         self.current_workspace_name.set_visible(True)
-        for workspace in self.window_manager.get_workspaces(mru=mru):
-            windows = self.window_manager.get_windows(workspace_id=workspace.id)
+        workspaces = self.window_manager.get_workspaces(mru=mru_sort)
+        for current_workspace in workspaces:
+            windows = self.window_manager.get_windows(workspace_id=current_workspace.id)
             if len(windows) > 0:
                 workspace_view = WorkspaceView(
-                    workspace,
+                    current_workspace,
                     windows,
                     icon_size=config.appearance.icon_size,
                 )
@@ -335,15 +336,36 @@ class NiriswitcherWindow(Gtk.Window):
                 workspace_view.connect("close-requested", self.on_close_requested)
                 self.workspace_stack.add_workspace(workspace_view)
 
-        active_workspace = self.window_manager.get_active_workspace()
-        self.workspace_indicator.select_by_workspace_id(
-            active_workspace.id, animate=False
-        )
-        current_workspace = self.workspace_stack.get_child_by_name(
-            active_workspace.identifier
-        )
-        if current_workspace is not None:
-            current_workspace.select_next()
+        if mru_select:
+            if not mru_sort:
+                workspaces = sorted(
+                    workspaces,
+                    key=operator.attrgetter("last_focus_time"),
+                    reverse=True,
+                )
+            active_workspace = None
+            for current_workspace in workspaces[1:]:
+                windows = self.window_manager.get_windows(
+                    workspace_id=current_workspace.id
+                )
+                if len(windows) > 0:
+                    active_workspace = current_workspace
+                    break
+            if active_workspace is None:
+                active_workspace = workspaces[0]
+            self.workspace_indicator.select_by_workspace_id(
+                active_workspace.id, animate=False
+            )
+        else:
+            active_workspace = self.window_manager.get_active_workspace()
+            self.workspace_indicator.select_by_workspace_id(
+                active_workspace.id, animate=False
+            )
+            current_workspace = self.workspace_stack.get_child_by_name(
+                active_workspace.identifier
+            )
+            if current_workspace is not None:
+                current_workspace.select_next()
 
     def focus_selected_window(self):
         workspace_view = self.workspace_stack.get_visible_child()
@@ -366,12 +388,6 @@ class NiriswitcherWindow(Gtk.Window):
             return
 
         self.workspace_indicator.select_next(animate=animate)
-
-    def select_mru_workspace(self, animate=True):
-        if not config.general.separate_workspaces:
-            return
-
-        self.workspace_indicator.select_mru(animate=animate)
 
     def select_prev_workspace(self, animate=True):
         if not config.general.separate_workspaces:
@@ -426,7 +442,7 @@ class NiriswicherApp(Adw.Application):
                 variant,
             )
 
-    def _should_present(self):
+    def _should_present_windows(self):
         separate_workspaces = config.general.separate_workspaces
         n_windows = self.window_manager.get_n_windows(
             active_workspace=separate_workspaces
@@ -434,6 +450,12 @@ class NiriswicherApp(Adw.Application):
         return (separate_workspaces and n_windows > 0) or (
             not separate_workspaces and n_windows > 1
         )
+
+    def _should_present_workspaces(self):
+        n_windows = self.window_manager.get_n_windows(
+            active_workspace=False,
+        )
+        return n_windows > 0
 
     def _handle_dbus_method(
         self,
@@ -447,10 +469,10 @@ class NiriswicherApp(Adw.Application):
     ):
         try:
             if method_name == "application":
-                if self._should_present():
+                if self._should_present_windows():
                     if config.general.separate_workspaces:
                         self.window.populate_separate_workspaces(
-                            mru=config.general.workspace_mru_sort
+                            mru_sort=config.workspace.mru_sort_in_workspace
                         )
                     else:
                         self.window.populate_unified_workspace()
@@ -459,14 +481,16 @@ class NiriswicherApp(Adw.Application):
                 invocation.return_value(None)
             elif method_name == "workspace":
                 if config.general.separate_workspaces:
-                    self.window.populate_separate_workspaces(
-                        mru=config.general.workspace_mru_sort
-                    )
-                    self.window.select_mru_workspace(animate=False)
+                    if self._should_present_workspaces():
+                        self.window.populate_separate_workspaces(
+                            mru_sort=config.workspace.mru_sort_across_workspace,
+                            mru_select=True,
+                        )
+                        self.window.set_visible(True)
                 else:
-                    self.window.populate_unified_workspace()
-
-                self.window.set_visible(True)
+                    if self._should_present_windows():
+                        self.window.populate_unified_workspace()
+                        self.window.set_visible(True)
                 invocation.return_value(None)
         except Exception as e:
             logger.exception("Failed to handle DBus message")

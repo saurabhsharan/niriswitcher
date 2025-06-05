@@ -52,7 +52,7 @@ def daemon():
     app = NiriswicherApp(window_manager)
 
     def signal_handler(signum, frame):
-        if app._should_present():
+        if app._should_present_windows():
             if config.general.separate_workspaces:
                 app.window.populate_separate_workspaces(
                     config.general.workspace_mru_sort

@@ -21,10 +21,15 @@ logger.setLevel(logging.WARN)
 @dataclass(frozen=True)
 class GeneralConfig:
     separate_workspaces: bool = True
-    workspace_mru_sort: bool = True
     double_click_to_hide: bool = False
     center_on_focus: bool = False
     log_level: str = "WARN"
+
+
+@dataclass(frozen=True)
+class WorkspaceConfig:
+    mru_sort_in_workspace: bool = False
+    mru_sort_across_workspace: bool = True
 
 
 @dataclass(frozen=True)
@@ -93,6 +98,7 @@ class AppearanceConfig:
 @dataclass(frozen=True)
 class Config:
     general: GeneralConfig = GeneralConfig()
+    workspace: WorkspaceConfig = WorkspaceConfig()
     keys: KeysConfig = KeysConfig()
     appearance: AppearanceConfig = AppearanceConfig()
 
@@ -222,7 +228,6 @@ def load_configuration(config_path: str = None) -> Config:
     separate_workspaces = config.get("separate_workspaces", True)
     double_click_to_hide = config.get("double_click_to_hide", False)
     center_on_focus = config.get("center_on_focus", False)
-    workspace_mru_sort = config.get("workspace_mru_sort", False)
     log_level = config.get("log_level", "WARN")
     if log_level not in ("WARN", "INFO", "DEBUG", "ERROR"):
         log_level = "DEBUG"
@@ -231,8 +236,15 @@ def load_configuration(config_path: str = None) -> Config:
         separate_workspaces=separate_workspaces,
         double_click_to_hide=double_click_to_hide,
         center_on_focus=center_on_focus,
-        workspace_mru_sort=workspace_mru_sort,
         log_level=log_level,
+    )
+
+    workspace_section = config.get("workspace", {})
+    workspace = WorkspaceConfig(
+        mru_sort_in_workspace=workspace_section.get("mru_sort_in_workspace", False),
+        mru_sort_across_workspace=workspace_section.get(
+            "mru_sort_across_workspace", True
+        ),
     )
 
     keys_section = config.get("keys", {})
@@ -330,7 +342,12 @@ def load_configuration(config_path: str = None) -> Config:
         workspace_format=appearance_workspace_format,
     )
 
-    return Config(general=general, keys=keys, appearance=appearance)
+    return Config(
+        general=general,
+        keys=keys,
+        appearance=appearance,
+        workspace=workspace,
+    )
 
 
 def load_system_style(filename="style.css", priority=0):

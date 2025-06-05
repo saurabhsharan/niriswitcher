@@ -210,16 +210,19 @@ The default mappings and modifier key can be configured in the `config.toml` fil
   show windows from the current workspace and enable workspace navigation. If
   `false`, the switcher will show applications from all workspaces and disable
   workspace navigation.
-- Sort order of workspaces i the switcher. If `workspace_mru_sort` is set to
-  `true` the workspaces are sorted in order of last used; otherwise in order of
-  their workspace index (as in Niri moving up and down).
+- Sort order of workspaces in the switcher.
+  - If `workspace.mru_sort_in_workspace` is set to `true` the workspaces are sorted in
+    order of last used when started with the most recently used window; otherwise
+    in order of their workspace index (as in Niri moving up and down).
+  - If `workspace.mru_sort_across_workspace` is set to `true` workspaces are sorted in
+    order of last used when started with the most recently used window from the
+    most recently used workspace; otherwise in order of workspace index.
 
 The configuration file is a simple `.toml`-file in
 `$XDG_CONFIG_HOME/niriswitcher/config.toml`. This is the default configuration:
 
 ```toml
 separate_workspaces = true
-workspace_mru_sort = false
 double_click_to_hide = false
 center_on_focus = false
 log_level = "WARN"
@@ -230,6 +233,10 @@ max_width = 800
 min_width = 600
 system_theme = "dark" # auto or light
 workspace_format = "{output}-{idx}" # {output}, {idx}, {name}
+
+[workspace]
+mru_sort_in_workspace = false
+mru_sort_across_workspace = true
 
 [appearance.animation.reveal]
 hide_duration = 200

@@ -217,6 +217,8 @@ The default mappings and modifier key can be configured in the `config.toml` fil
   - If `workspace.mru_sort_across_workspace` is set to `true` workspaces are sorted in
     order of last used when started with the most recently used window from the
     most recently used workspace; otherwise in order of workspace index.
+- Workspace name format in the switcher is controlled by `workspace_format`.
+  The format string supports `{name}`, `{output}` and `{idx}`.
 
 The configuration file is a simple `.toml`-file in
 `$XDG_CONFIG_HOME/niriswitcher/config.toml`. This is the default configuration:

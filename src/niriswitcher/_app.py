@@ -301,13 +301,11 @@ class NiriswitcherWindow(Gtk.Window):
         )
         self.workspace_indicator.set_visible(False)
         self.current_workspace_name.set_opacity(0)
-        self.current_workspace_name.set_width_chars(10)
         self.workspace_stack.add_named(workspace_view, "all")
         workspace_view.select_current()
 
     def populate_separate_workspaces(self, mru_sort=False, mru_select=False):
         self.workspace_indicator.set_visible(True)
-        self.current_workspace_name.set_visible(True)
         workspaces = self.window_manager.get_workspaces(mru=mru_sort)
         for current_workspace in workspaces:
             windows = self.window_manager.get_windows(workspace_id=current_workspace.id)

@@ -334,6 +334,22 @@ To make the application name visible for non-selected applications (but dimmed):
 }
 ```
 
+To hide the window title and workspace name:
+
+```css
+#top-bar {
+  opacity: 0;
+}
+```
+
+To hide the workspace name:
+
+```css
+#workspace-name {
+  opacity: 0;
+}
+```
+
 `niriswitcher` also uses `style-dark.css` to style the application in `dark` mode.
 
 If you only want to change the colors, you only need to override the colors

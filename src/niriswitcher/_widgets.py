@@ -643,6 +643,20 @@ class WorkspaceIndicator(Gtk.Box):
 
         self.select(prev, animate=animate)
 
+    def select_mru(self, animate=True):
+        workspace_indicators = sorted(
+            (workspace_indicator for workspace_indicator in self),
+            key=lambda w: w.workspace.last_focus_time,
+            reverse=True,
+        )
+        if len(workspace_indicators) == 0:
+            return
+
+        index = 0
+        if len(workspace_indicators) > 1:
+            index = 1
+        self.select(workspace_indicators[index], animate=animate)
+
     def __iter__(self):
         current = self.get_first_child()
         while current is not None:

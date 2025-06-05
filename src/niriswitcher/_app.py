@@ -367,6 +367,12 @@ class NiriswitcherWindow(Gtk.Window):
 
         self.workspace_indicator.select_next(animate=animate)
 
+    def select_mru_workspace(self, animate=True):
+        if not config.general.separate_workspaces:
+            return
+
+        self.workspace_indicator.select_mru(animate=animate)
+
     def select_prev_workspace(self, animate=True):
         if not config.general.separate_workspaces:
             return
@@ -453,8 +459,10 @@ class NiriswicherApp(Adw.Application):
                 invocation.return_value(None)
             elif method_name == "workspace":
                 if config.general.separate_workspaces:
-                    self.window.populate_separate_workspaces(mru=True)
-                    self.window.select_next_workspace(animate=False)
+                    self.window.populate_separate_workspaces(
+                        mru=config.general.workspace_mru_sort
+                    )
+                    self.window.select_mru_workspace(animate=False)
                 else:
                     self.window.populate_unified_workspace()
 

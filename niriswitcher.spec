@@ -129,3 +129,7 @@ currently active output.
   - `workspace.mru_sort_across_workspace`: sort the workspaces in MRU when
     starting by showing the most recent window in the most recent
     workspace.
+
+* Wed June 5 Isak Samsten <isak@samsten.se> - 0.6.1-1
+- Fix transparent background on some Gtk themes.
+

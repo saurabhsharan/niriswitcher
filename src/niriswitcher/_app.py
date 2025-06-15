@@ -16,7 +16,7 @@ from ._widgets import (
 )
 
 if TYPE_CHECKING:
-    from ._wm import NiriWindowManager, Workspace
+    from ._wm import NiriWindowManager, Workspace, Window
 
 logger = logging.getLogger(__name__)
 
@@ -207,9 +207,13 @@ class NiriswitcherWindow(Gtk.Window):
             else:
                 application_view.unfocus()
 
-    def on_application_selection_changed(self, widget, window):
+    def on_application_selection_changed(self, widget: Gtk.Widget, window: Window):
         title = window.title if window.title is not None else ""
         self.current_application_title.set_label(title)
+        if not config.general.separate_workspaces:
+            workspace = self.window_manager.get_workspace(window.workspace_id)
+            if workspace is not None:
+                self._set_workspace_name(workspace)
 
     def on_close_requested(self, widget, window):
         window.close()
@@ -265,6 +269,21 @@ class NiriswitcherWindow(Gtk.Window):
             "window-focus-changed", self.on_window_focus_changed
         )
 
+    def _set_workspace_name(self, workspace: Workspace):
+        try:
+            self.current_workspace_name.set_label(
+                config.appearance.workspace_format.format(
+                    output=workspace.output,
+                    idx=workspace.idx,
+                    name=workspace.name,
+                )
+            )
+        except Exception:
+            self.current_workspace_name.set_label(workspace.identifier)
+            logger.debug(
+                "Invalid format specification for appearance.workspace_format, using default"
+            )
+
     def _create_keybindings(self):
         return sorted(
             [
@@ -300,7 +319,6 @@ class NiriswitcherWindow(Gtk.Window):
             "selection-changed", self.on_application_selection_changed
         )
         self.workspace_indicator.set_visible(False)
-        self.current_workspace_name.set_opacity(0)
         self.workspace_stack.add_named(workspace_view, "all")
         workspace_view.select_current()
 

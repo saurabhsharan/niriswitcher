@@ -273,6 +273,9 @@ class NiriWindowManager(GObject.Object):
                 window.is_urgent = window_urgency_changed["urgent"]
                 self.emit("window-urgency-changed", window)
 
+    def get_workspace(self, workspace_id: int) -> Workspace | None:
+        return self.workspaces.get(workspace_id, None)
+
     def get_active_workspace(self):
         if not self._workspaces_loaded:
             return None

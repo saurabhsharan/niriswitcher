@@ -4,11 +4,40 @@ import os
 import socket
 import time
 
-from gi.repository import Gio, GObject, GLib
+from gi.repository import Gio, GObject, GLib, Gtk, Gdk
 
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def find_icon(app_info: Gio.DesktopAppInfo) -> Gio.Icon | None:
+    app_name = "unknown-application"
+    icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
+    if app_info:
+        app_name = app_info.get_name()
+        icon = app_info.get_icon()
+        if isinstance(icon, Gio.ThemedIcon):
+            icon_names = icon.get_names()
+            for icon_name in icon_names:
+                if icon_theme.has_icon(icon_name):
+                    try:
+                        return icon
+                    except Exception:
+                        continue
+        elif isinstance(icon, Gio.LoadableIcon):
+            try:
+                return icon
+            except Exception:
+                pass
+
+    if icon_theme.has_icon("application-x-executable"):
+        logger.debug("Can't find icon for %s, using default fallback", app_name)
+        icon = Gio.ThemedIcon.new("application-x-executable")
+        return icon
+
+    logger.error("Can't find icon for %s", app_name)
+    return None
 
 
 class Window(GObject.Object):
@@ -19,27 +48,29 @@ class Window(GObject.Object):
     title = GObject.Property(type=str)
     is_urgent = GObject.Property(type=bool, default=False)
     last_focus_time = GObject.Property(type=float)
+    icon = GObject.Property(type=Gio.Icon)
+    name = GObject.Property(type=str)
 
     def __init__(self, window, last_focus_time=None):
         app_id = window["app_id"]
         workspace_id = window["workspace_id"]
+        app_info = get_app_info(app_id) if app_id is not None else None
+        if self.app_info is not None:
+            name = self.app_info.get_display_name()
+        else:
+            name = self.app_id if self.app_id is not None else "Unknown"
         super().__init__(
             id=window["id"],
             workspace_id=workspace_id if workspace_id is not None else -1,
             app_id=app_id,
+            name=name,
+            icon=find_icon(app_info),
             app_info=get_app_info(app_id) if app_id is not None else None,
             title=window["title"],
             last_focus_time=(
                 last_focus_time if last_focus_time is not None else time.time()
             ),
         )
-
-    @property
-    def name(self):
-        if self.app_info is not None:
-            return self.app_info.get_name()
-        else:
-            return self.app_id if self.app_id is not None else "Unknown"
 
     def update(self, new):
         self.title = new["title"]

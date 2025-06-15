@@ -1,7 +1,7 @@
 import logging
 import time
 
-from gi.repository import Gdk, Gio, GLib, GObject, Gtk, Pango
+from gi.repository import GLib, GObject, Gtk, Pango
 
 from ._anim import ease_in_out_cubic, ease_out_cubic
 from ._wm import Window, Workspace
@@ -39,13 +39,17 @@ class ApplicationView(Gtk.Box):
     def __init__(self, window: Window, *, size: int) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.window = window
-        icon = new_app_icon_or_default(window.app_info, size)
         name = Gtk.Label()
         name.set_ellipsize(Pango.EllipsizeMode.END)
         name.set_max_width_chars(1)
         name.set_hexpand(True)
         if self.window.name:
             name.set_label(self.window.name)
+
+        icon = Gtk.Image()
+        if self.window.icon is not None:
+            icon.set_from_gicon(self.window.icon)
+        icon.set_pixel_size(size)
 
         self.append(icon)
         self.append(name)
@@ -105,69 +109,6 @@ class ApplicationView(Gtk.Box):
 
     def unfocus(self) -> None:
         self.remove_css_class("focused")
-
-
-def new_app_icon_or_default(app_info: Gio.DesktopAppInfo, size):
-    """
-    Returns a Gtk.Image widget for the given application's icon or a default
-    icon if unavailable.
-
-    Attempts to retrieve the icon from the provided Gio.DesktopAppInfo object.
-    Handles themed icons, loadable icons, and string icon names. If no suitable
-    icon is found, falls back to the "application-x-executable" icon or an
-    empty Gtk.Image.
-
-    Args:
-        app_info (Gio.DesktopAppInfo): The application info object containing icon data.
-        size (int): The desired pixel size for the icon image.
-
-    Returns:
-        Gtk.Image: A Gtk.Image widget displaying the application's icon or a default icon.
-    """
-    app_name = "unknown-application"
-    icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
-    if app_info:
-        app_name = app_info.get_name()
-        icon = app_info.get_icon()
-        if isinstance(icon, Gio.ThemedIcon):
-            icon_names = icon.get_names()
-            for icon_name in icon_names:
-                if icon_theme.has_icon(icon_name):
-                    try:
-                        gicon = Gio.ThemedIcon.new(icon_name)
-                        image = Gtk.Image.new_from_gicon(gicon)
-                        image.set_pixel_size(size)
-                        return image
-                    except Exception:
-                        continue
-        elif isinstance(icon, Gio.LoadableIcon):
-            try:
-                image = Gtk.Image.new_from_gicon(icon)
-                image.set_pixel_size(size)
-                return image
-            except Exception:
-                pass
-        elif isinstance(icon, str):
-            if icon_theme.has_icon(icon):
-                try:
-                    gicon = Gio.ThemedIcon.new(icon)
-                    image = Gtk.Image.new_from_gicon(gicon)
-                    image.set_pixel_size(size)
-                    return image
-                except Exception:
-                    pass
-
-    if icon_theme.has_icon("application-x-executable"):
-        logger.debug("Can't find icon for %s, using default fallback", app_name)
-        gicon = Gio.ThemedIcon.new("application-x-executable")
-        image = Gtk.Image.new_from_gicon(gicon)
-        image.set_pixel_size(size)
-        return image
-
-    logger.error("Can't find icon for %s, using empty image", app_name)
-    image = Gtk.Image()
-    image.set_pixel_size(size)
-    return image
 
 
 class AnimateScrollToWidget:

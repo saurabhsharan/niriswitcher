@@ -73,10 +73,13 @@ class Window(GObject.Object):
         )
 
     def update(self, new):
-        self.title = new["title"]
         self.last_focus_time = time.time()
+        if title := new.get("title"):
+            if self.title != title:
+                self.title = title
         if workspace_id := new.get("workspace_id"):
-            self.workspace_id = workspace_id
+            if self.workspace_id != workspace_id:
+                self.workspace_id = workspace_id
         else:
             self.workspace_id = -1
 
@@ -124,11 +127,21 @@ class Workspace(GObject.Object):
 
     def update(self, new):
         self.last_focus_time = time.time()
-        self.output = new["output"]
-        self.is_active = new["is_active"]
-        self.is_focused = new["is_focused"]
-        self.name = new["name"]
-        self.idx = new["idx"]
+        if output := new.get("output"):
+            if self.output != output:
+                self.output = output
+        if is_active := new.get("is_active"):
+            if self.is_active != is_active:
+                self.is_active = is_active
+        if is_focused := new.get("is_focused"):
+            if self.is_focused != is_focused:
+                self.is_focused = is_focused
+        if name := new.get("name"):
+            if self.name != name:
+                self.name = name
+        if idx := new.get("idx"):
+            if self.idx != idx:
+                self.idx = idx
 
 
 def get_app_info(app_id: str) -> Gio.AppInfo | None:

@@ -100,14 +100,25 @@ class Workspace(GObject.Object):
         self.idx = new["idx"]
 
 
-def get_app_info(app_id):
+def get_app_info(app_id: str) -> Gio.AppInfo | None:
+    try:
+        return Gio.DesktopAppInfo.new(app_id + ".desktop")
+    except Exception:
+        return get_app_info_fallback(app_id)
+
+
+def get_app_info_fallback(app_id: str) -> Gio.AppInfo | None:
+    app_id = app_id.lower()
     try:
         return Gio.DesktopAppInfo.new(app_id + ".desktop")
     except Exception:
         desktop_files = Gio.AppInfo.get_all()
         for desktop_file in desktop_files:
             startup_wm_class = desktop_file.get_string("StartupWMClass")
-            if startup_wm_class and app_id.lower() == startup_wm_class.lower():
+            name = desktop_file.get_name()
+            if (name and app_id == name.lower()) or (
+                startup_wm_class and app_id == startup_wm_class.lower()
+            ):
                 return desktop_file
         return None
 

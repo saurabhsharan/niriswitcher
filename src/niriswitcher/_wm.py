@@ -331,6 +331,16 @@ class NiriWindowManager(GObject.Object):
     def get_workspace(self, workspace_id: int) -> Workspace | None:
         return self.workspaces.get(workspace_id, None)
 
+    def get_workspace_by_idx(self, workspace_idx: int) -> Workspace | None:
+        return next(
+            (
+                workspace
+                for workspace in self.workspaces.values()
+                if workspace.idx == workspace_idx
+            ),
+            None,
+        )
+
     def get_active_workspace(self):
         if not self._workspaces_loaded:
             return None

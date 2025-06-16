@@ -1,6 +1,9 @@
+import logging
 import math
 
 from gi.repository import Gtk
+
+logger = logging.getLogger(__name__)
 
 
 def ease_in_cubic(t):
@@ -405,26 +408,15 @@ EASING_FUNCTIONS = {
 }
 
 
-def get_easing_function(name):
-    """
-    Returns the easing function corresponding to the given name.
-
-    Args:
-        name (str): The name of the easing function.
-
-    Returns:
-        callable: The easing function.
-
-    Raises:
-        ValueError: If the name is not a valid easing function.
-    """
-    try:
-        return EASING_FUNCTIONS[name]
-    except KeyError:
-        raise ValueError(
+def get_easing_function(name, *, default):
+    if func := EASING_FUNCTIONS.get(name):
+        return func
+    else:
+        logger.error(
             f"Unknown easing function: {name!r}. "
-            f"Available options: {', '.join(EASING_FUNCTIONS.keys())}"
+            f"Available options: {', '.join(EASING_FUNCTIONS.keys())}",
         )
+        return default
 
 
 def get_transition_function(name):
@@ -435,7 +427,8 @@ def get_transition_function(name):
     elif name == "crossfade":
         return Gtk.StackTransitionType.CROSSFADE
     else:
-        raise ValueError(
+        logger.error(
             f"Unknown trainstion function: {name!r}. "
             f"Available options: slide, over, crossfade"
         )
+        return Gtk.StackTransitionType.SLIDE_UP_DOWN

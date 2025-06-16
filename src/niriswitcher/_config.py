@@ -302,11 +302,15 @@ def load_configuration(config_path: str = None) -> Config:
 
     resize_animation = ResizeAnimationConfig(
         duration=resize_section.get("duration", 200),
-        easing=get_easing_function(resize_section.get("easing", "ease-out-cubic")),
+        easing=get_easing_function(
+            resize_section.get("easing", "ease-out-cubic"), default=ease_out_cubic
+        ),
     )
     switch_animation = SwitchAnimationConfig(
         duration=switch_section.get("duration", 200),
-        easing=get_easing_function(switch_section.get("easing", "ease-in-out-cubic")),
+        easing=get_easing_function(
+            switch_section.get("easing", "ease-in-out-cubic"), default=ease_in_out_cubic
+        ),
     )
     workspace_animation = WorkspaceAnimationConfig(
         duration=workspace_section.get("duration", 200),
@@ -329,7 +333,9 @@ def load_configuration(config_path: str = None) -> Config:
     reveal_animation = ActivateAnimationConfig(
         show_duration=reveal_section.get("show_duration", duration),
         hide_duration=reveal_section.get("hide_duration", duration),
-        easing=get_easing_function(reveal_section.get("easing", easing)),
+        easing=get_easing_function(
+            reveal_section.get("easing", easing), default=ease_out_cubic
+        ),
     )
     animation = AnimationConfig(
         resize=resize_animation,

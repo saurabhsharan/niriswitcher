@@ -320,7 +320,7 @@ class NiriswitcherWindow(Gtk.Window):
         )
         self.workspace_indicator.set_visible(False)
         self.workspace_stack.add_named(workspace_view, "all")
-        workspace_view.select_current()
+        workspace_view.select_next()
 
     def populate_separate_workspaces(self, mru_sort=False, mru_select=False):
         self.workspace_indicator.set_visible(True)

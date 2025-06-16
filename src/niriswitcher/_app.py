@@ -161,9 +161,7 @@ class NiriswitcherWindow(Gtk.Window):
         if keyval == Gdk.KEY_ISO_Left_Tab:
             keyval = Gdk.KEY_Tab
 
-        keyval_name = Gdk.keyval_name(keyval)
-        if keyval_name and len(keyval_name) == 1 and keyval_name.isalpha():
-            keyval = Gdk.keyval_from_name(keyval_name.lower())
+        keyval = Gdk.keyval_to_lower(keyval)
 
         for keybinding in self.keybindings:
             if keybinding.matches(keyval, state):

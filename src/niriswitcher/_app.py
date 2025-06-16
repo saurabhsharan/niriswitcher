@@ -72,6 +72,7 @@ NUMBER_KEY_TO_NUMBER: dict[int, int] = {
     Gdk.KEY_2: 2,
     Gdk.KEY_3: 3,
     Gdk.KEY_4: 4,
+    Gdk.KEY_5: 5,
     Gdk.KEY_6: 6,
     Gdk.KEY_7: 7,
     Gdk.KEY_8: 8,

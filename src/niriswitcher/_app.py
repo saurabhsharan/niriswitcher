@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import operator
-from typing import TYPE_CHECKING
+import inspect
+from typing import TYPE_CHECKING, Callable, Union
 
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk, Pango
 from gi.repository import Gtk4LayerShell as LayerShell
@@ -22,37 +23,57 @@ logger = logging.getLogger(__name__)
 
 
 class KeybindingAction:
-    """
-    Represents an action bound to a specific keybinding, including its key
-    value, modifier state, and the action to execute.
+    action: Union[Callable[[], None], Callable[[int], None]]
 
-    Attributes:
-        keyval (int): The key value associated with the keybinding.
-        state (int): The modifier state (e.g., Ctrl, Shift) for the keybinding.
-        action (callable): The function or callable to execute when the keybinding is triggered.
-        mod_count (int): The number of modifier keys active in the state.
-
-    """
-
-    def __init__(self, mapping, action):
-        self.keyval = mapping[0]
+    def __init__(
+        self,
+        mapping: tuple[int, int] | tuple[list[int], int],
+        action: Callable[None, None],
+    ):
+        self.keyval = (
+            mapping[0] if hasattr(mapping[0], "__contains__") else [mapping[0]]
+        )
         self.state = mapping[1]
         self.action = action
         self.mod_count = bin(int(self.state)).count("1")
+        sig = inspect.signature(self.action)
+        self.arg_count = len(
+            [
+                p
+                for p in sig.parameters.values()
+                if p.kind
+                in (
+                    inspect.Parameter.POSITIONAL_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                )
+            ]
+        )
 
     def matches(self, keyval, state):
-        if keyval == self.keyval and (
+        if keyval in self.keyval and (
             (state & Gtk.accelerator_get_default_mod_mask())
             == (self.state & Gtk.accelerator_get_default_mod_mask())
         ):
             return True
         return False
 
-    def execute(self):
+    def execute(self, keyval):
         try:
-            self.action()
+            if self.arg_count == 1:
+                self.action(keyval)
+            else:
+                self.action()
         except Exception:
             logger.debug("Failed to execute %s", self.action.__name__, exc_info=True)
+
+
+NUMBER_KEY_TO_NUMBER: dict[int, int] = {
+    Gdk.KEY_1: 1,
+    Gdk.KEY_2: 2,
+    Gdk.KEY_3: 3,
+    Gdk.KEY_4: 4,
+    Gdk.KEY_5: 5,
+}
 
 
 class NiriswitcherWindow(Gtk.Window):
@@ -165,7 +186,7 @@ class NiriswitcherWindow(Gtk.Window):
 
         for keybinding in self.keybindings:
             if keybinding.matches(keyval, state):
-                keybinding.execute()
+                keybinding.execute(keyval)
                 break
 
     def on_window_closed(self, wm, window):
@@ -182,19 +203,7 @@ class NiriswitcherWindow(Gtk.Window):
     def on_workspace_selection_changed(
         self, widget: Gtk.Widget, workspace: Workspace, animate: bool
     ):
-        try:
-            self.current_workspace_name.set_label(
-                config.appearance.workspace_format.format(
-                    output=workspace.output,
-                    idx=workspace.idx,
-                    name=workspace.name,
-                )
-            )
-        except Exception:
-            self.current_workspace_name.set_label(workspace.identifier)
-            logger.debug(
-                "Invalid format specification for appearance.workspace_format, using default"
-            )
+        self._set_workspace_name(workspace)
 
     def on_window_focus_changed(self, vm, window):
         workspace_view = self.workspace_stack.get_visible_child()
@@ -294,6 +303,10 @@ class NiriswitcherWindow(Gtk.Window):
                 ),
                 KeybindingAction(
                     config.keys.prev_workspace, self.select_prev_workspace
+                ),
+                KeybindingAction(
+                    (NUMBER_KEY_TO_NUMBER.keys(), config.keys.modifier_mask),
+                    self._select_workspace_by_idx,
                 ),
             ],
             key=operator.attrgetter("mod_count"),
@@ -408,6 +421,12 @@ class NiriswitcherWindow(Gtk.Window):
             return
 
         self.workspace_indicator.select_prev(animate=animate)
+
+    def _select_workspace_by_idx(self, keyval: int):
+        idx = NUMBER_KEY_TO_NUMBER.get(keyval)
+        if idx is not None:
+            if workspace := self.window_manager.get_workspace_by_idx(idx):
+                self.workspace_indicator.select_by_workspace_id(workspace.id)
 
 
 class NiriswicherApp(Adw.Application):

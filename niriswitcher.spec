@@ -1,4 +1,4 @@
-%define version 0.6.1
+%define version 0.7.0
 
 Name:           niriswitcher
 Version:        %{version}
@@ -41,6 +41,14 @@ An application switcher for niri.
 %{python3_sitelib}/niriswitcher*
 
 %changelog
+* Mon June 16 Isak Samsten <isak@samsten.se> - 0.7.0-1
+- Add option to show windows/workspaces from current output only
+- Add number key workspace switching via keybindings
+- Correctly select the most recently used application if separate_workspaces=false
+- Unless separate workspaces are enabled, display the current workspace name
+  when an application is selected
+- Refactor app info lookup with fallback to more reliably detect applications
+
 * Wed June 5 Isak Samsten <isak@samsten.se> - 0.6.1-1
 - Fix transparent background on some Gtk themes.
 

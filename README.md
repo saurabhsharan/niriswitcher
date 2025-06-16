@@ -165,12 +165,15 @@ The default mappings and modifier key can be configured in the `config.toml` fil
     most recently used workspace; otherwise in order of workspace index.
 - Workspace name format in the switcher is controlled by `workspace_format`.
   The format string supports `{name}`, `{output}` and `{idx}`.
+- If `current_output_only` is `true` only show windows and workspaces from the
+  currently active output.
 
 The configuration file is a simple `.toml`-file in
 `$XDG_CONFIG_HOME/niriswitcher/config.toml`. This is the default configuration:
 
 ```toml
 separate_workspaces = true
+current_output_only = false
 double_click_to_hide = false
 center_on_focus = false
 log_level = "WARN"

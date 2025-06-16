@@ -23,6 +23,7 @@ class GeneralConfig:
     separate_workspaces: bool = True
     double_click_to_hide: bool = False
     center_on_focus: bool = False
+    current_output_only: bool = False
     log_level: str = "WARN"
 
 
@@ -229,6 +230,7 @@ def load_configuration(config_path: str = None) -> Config:
     separate_workspaces = config.get("separate_workspaces", True)
     double_click_to_hide = config.get("double_click_to_hide", False)
     center_on_focus = config.get("center_on_focus", False)
+    current_output_only = config.get("current_output_only", False)
     log_level = config.get("log_level", "WARN")
     if log_level not in ("WARN", "INFO", "DEBUG", "ERROR"):
         log_level = "DEBUG"
@@ -237,6 +239,7 @@ def load_configuration(config_path: str = None) -> Config:
         separate_workspaces=separate_workspaces,
         double_click_to_hide=double_click_to_hide,
         center_on_focus=center_on_focus,
+        current_output_only=current_output_only,
         log_level=log_level,
     )
 

@@ -63,10 +63,13 @@ def daemon():
         if app._should_present_windows():
             if config.general.separate_workspaces:
                 app.window.populate_separate_workspaces(
-                    config.general.workspace_mru_sort
+                    mru_sort=config.general.workspace_mru_sort,
+                    active_output=config.general.current_output_only,
                 )
             else:
-                app.window.populate_unified_workspace()
+                app.window.populate_unified_workspace(
+                    active_output=config.general.current_output_only
+                )
             app.window.set_visible(True)
 
     Gtk.StyleContext.add_provider_for_display(

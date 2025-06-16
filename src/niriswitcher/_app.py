@@ -196,9 +196,14 @@ class NiriswitcherWindow(Gtk.Window):
                     self.set_visible(False)
                 return
 
-    def on_workspace_activated(self, wm, workspace):
+    def on_workspace_activated(self, wm, current: Workspace, previous: Workspace):
         if self.is_visible():
-            self.workspace_indicator.select_by_workspace_id(workspace.id)
+            if config.general.current_output_only and previous is not None:
+                if previous.output != current.output:
+                    self.set_visible(False)
+                    return
+
+            self.workspace_indicator.select_by_workspace_id(current.id)
 
     def on_workspace_selection_changed(
         self, widget: Gtk.Widget, workspace: Workspace, animate: bool
@@ -292,29 +297,31 @@ class NiriswitcherWindow(Gtk.Window):
             )
 
     def _create_keybindings(self):
-        return sorted(
-            [
-                KeybindingAction(config.keys.next, self.select_next_application),
-                KeybindingAction(config.keys.prev, self.select_prev_application),
-                KeybindingAction(config.keys.abort, self.hide),
-                KeybindingAction(config.keys.close, self.close_selected_window),
-                KeybindingAction(
-                    config.keys.next_workspace, self.select_next_workspace
-                ),
-                KeybindingAction(
-                    config.keys.prev_workspace, self.select_prev_workspace
-                ),
+        mappings = [
+            KeybindingAction(config.keys.next, self.select_next_application),
+            KeybindingAction(config.keys.prev, self.select_prev_application),
+            KeybindingAction(config.keys.abort, self.hide),
+            KeybindingAction(config.keys.close, self.close_selected_window),
+            KeybindingAction(config.keys.next_workspace, self.select_next_workspace),
+            KeybindingAction(config.keys.prev_workspace, self.select_prev_workspace),
+        ]
+        if config.general.current_output_only:
+            mappings.append(
                 KeybindingAction(
                     (NUMBER_KEY_TO_NUMBER.keys(), config.keys.modifier_mask),
                     self._select_workspace_by_idx,
-                ),
-            ],
+                )
+            )
+        return sorted(
+            mappings,
             key=operator.attrgetter("mod_count"),
             reverse=True,
         )
 
-    def populate_unified_workspace(self):
-        windows = self.window_manager.get_windows(active_workspace=False)
+    def populate_unified_workspace(self, active_output=False):
+        windows = self.window_manager.get_windows(
+            active_workspace=False, active_output=active_output
+        )
         workspace_view = WorkspaceView(
             None,
             windows,
@@ -333,9 +340,13 @@ class NiriswitcherWindow(Gtk.Window):
         self.workspace_stack.add_named(workspace_view, "all")
         workspace_view.select_next()
 
-    def populate_separate_workspaces(self, mru_sort=False, mru_select=False):
+    def populate_separate_workspaces(
+        self, mru_sort=False, mru_select=False, active_output=False
+    ):
         self.workspace_indicator.set_visible(True)
-        workspaces = self.window_manager.get_workspaces(mru=mru_sort)
+        workspaces = self.window_manager.get_workspaces(
+            mru=mru_sort, active_output=active_output
+        )
         for current_workspace in workspaces:
             windows = self.window_manager.get_windows(workspace_id=current_workspace.id)
             if len(windows) > 0:
@@ -425,8 +436,17 @@ class NiriswitcherWindow(Gtk.Window):
     def _select_workspace_by_idx(self, keyval: int):
         idx = NUMBER_KEY_TO_NUMBER.get(keyval)
         if idx is not None:
-            if workspace := self.window_manager.get_workspace_by_idx(idx):
-                self.workspace_indicator.select_by_workspace_id(workspace.id)
+            if workspaces := self.window_manager.get_workspace_by_idx(idx):
+                if active_workspace := self.window_manager.get_active_workspace():
+                    if workspace := next(
+                        (
+                            workspace
+                            for workspace in workspaces
+                            if workspace.output == active_workspace.output
+                        ),
+                        None,
+                    ):
+                        self.workspace_indicator.select_by_workspace_id(workspace.id)
 
 
 class NiriswicherApp(Adw.Application):
@@ -475,20 +495,27 @@ class NiriswicherApp(Adw.Application):
                 variant,
             )
 
-    def _should_present_windows(self):
+    def _should_present_windows(self, active_output=False):
+        if self.window.is_visible():
+            return False
+
         separate_workspaces = config.general.separate_workspaces
         n_windows = self.window_manager.get_n_windows(
-            active_workspace=separate_workspaces
+            active_workspace=separate_workspaces, active_output=active_output
         )
         return (separate_workspaces and n_windows > 0) or (
             not separate_workspaces and n_windows > 1
         )
 
-    def _should_present_workspaces(self):
+    def _should_present_workspaces(self, active_output=False):
+        if self.window.is_visible():
+            return False
+
         n_windows = self.window_manager.get_n_windows(
-            active_workspace=False,
+            active_workspace=False, active_output=active_output
         )
-        return n_windows > 0
+        n_workspaces = self.window_manager.get_n_workspaces(active_output=active_output)
+        return n_windows > 0 and n_workspaces > 1
 
     def _handle_dbus_method(
         self,
@@ -502,27 +529,39 @@ class NiriswicherApp(Adw.Application):
     ):
         try:
             if method_name == "application":
-                if self._should_present_windows():
+                if self._should_present_windows(
+                    active_output=config.general.current_output_only
+                ):
                     if config.general.separate_workspaces:
                         self.window.populate_separate_workspaces(
-                            mru_sort=config.workspace.mru_sort_in_workspace
+                            mru_sort=config.workspace.mru_sort_in_workspace,
+                            active_output=config.general.current_output_only,
                         )
                     else:
-                        self.window.populate_unified_workspace()
+                        self.window.populate_unified_workspace(
+                            active_output=config.general.current_output_only
+                        )
 
                     self.window.set_visible(True)
                 invocation.return_value(None)
             elif method_name == "workspace":
                 if config.general.separate_workspaces:
-                    if self._should_present_workspaces():
+                    if self._should_present_workspaces(
+                        active_output=config.general.current_output_only
+                    ):
                         self.window.populate_separate_workspaces(
                             mru_sort=config.workspace.mru_sort_across_workspace,
                             mru_select=True,
+                            active_output=config.general.current_output_only,
                         )
                         self.window.set_visible(True)
                 else:
-                    if self._should_present_windows():
-                        self.window.populate_unified_workspace()
+                    if self._should_present_windows(
+                        active_output=config.general.current_output_only
+                    ):
+                        self.window.populate_unified_workspace(
+                            active_output=config.general.current_output_only
+                        )
                         self.window.set_visible(True)
                 invocation.return_value(None)
         except Exception as e:

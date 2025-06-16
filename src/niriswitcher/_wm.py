@@ -188,7 +188,11 @@ class NiriWindowManager(GObject.Object):
         "window-closed": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
         "window-opened": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
         "window-focus-changed": (GObject.SignalFlags.RUN_FIRST, None, (Window,)),
-        "workspace-activated": (GObject.SignalFlags.RUN_FIRST, None, (Workspace,)),
+        "workspace-activated": (
+            GObject.SignalFlags.RUN_FIRST,
+            None,
+            (Workspace, Workspace),
+        ),
         "workspace-urgency-changed": (
             GObject.SignalFlags.RUN_FIRST,
             None,
@@ -313,10 +317,11 @@ class NiriWindowManager(GObject.Object):
                 self.active_window = window_id
                 self.emit("window-focus-changed", self.windows[window_id])
         elif workspace_activated := obj.get("WorkspaceActivated"):
+            previous = self.active_workspace
             self.active_workspace = workspace_activated["id"]
             workspace = self.workspaces[self.active_workspace]
             workspace.last_focus_time = time.time()
-            self.emit("workspace-activated", workspace)
+            self.emit("workspace-activated", workspace, self.workspaces.get(previous))
         elif workspace_urgency_changed := obj.get("WorkspaceUrgencyChanged"):
             workspace_id = workspace_urgency_changed["id"]
             if workspace := self.workspaces.get(workspace_id):
@@ -331,37 +336,72 @@ class NiriWindowManager(GObject.Object):
     def get_workspace(self, workspace_id: int) -> Workspace | None:
         return self.workspaces.get(workspace_id, None)
 
-    def get_workspace_by_idx(self, workspace_idx: int) -> Workspace | None:
-        return next(
-            (
-                workspace
-                for workspace in self.workspaces.values()
-                if workspace.idx == workspace_idx
-            ),
-            None,
-        )
+    def get_workspace_by_idx(self, workspace_idx: int) -> list[Workspace]:
+        return [
+            workspace
+            for workspace in self.workspaces.values()
+            if workspace.idx == workspace_idx
+        ]
 
     def get_active_workspace(self):
         if not self._workspaces_loaded:
             return None
         return self.workspaces[self.active_workspace]
 
-    def get_n_windows(self, active_workspace=True):
+    def get_n_workspaces(self, active_output=False):
+        if not self._workspaces_loaded:
+            return 0
+        if current_workspace := self.get_active_workspace():
+            count = 0
+            for workspace in self.workspaces.values():
+                if not active_output or workspace.output == current_workspace.output:
+                    count += 1
+            return count
+        else:
+            return 0
+
+    def get_n_windows(self, active_workspace=True, active_output=False):
         if not self._windows_loaded:
             return 0
-        if not active_workspace:
-            return len(self.windows)
 
-        return len(
-            [
-                window
-                for window in self.windows.values()
-                if window.workspace_id == self.active_workspace
-            ]
-        )
+        if current_workspace := self.get_active_workspace():
+            count = 0
+            if not active_workspace:
+                for window in self.windows.values():
+                    if workspace := self.get_workspace(window.workspace_id):
+                        if (
+                            not active_output
+                            or workspace.output == current_workspace.output
+                        ):
+                            count += 1
+            else:
+                for window in self.windows.values():
+                    if workspace := self.get_workspace(window.workspace_id):
+                        if window.workspace_id == current_workspace.id and (
+                            not active_output
+                            or workspace.output == current_workspace.output
+                        ):
+                            count += 1
+            return count
+        else:
+            return 0
 
-    def get_windows(self, active_workspace=True, workspace_id=None) -> list[Window]:
+    def get_windows(
+        self, active_workspace=True, workspace_id=None, active_output=False
+    ) -> list[Window]:
         windows = self.windows.values()
+        if active_output:
+            current_workspace = self.get_active_workspace()
+
+            def f(w: Window) -> bool:
+                if workspace := self.get_workspace(w.workspace_id):
+                    if workspace.output == current_workspace.output:
+                        return True
+
+                return False
+
+            windows = filter(f, windows)
+
         if active_workspace and workspace_id is None:
             windows = filter(
                 lambda w: w.workspace_id == -1
@@ -376,12 +416,16 @@ class NiriWindowManager(GObject.Object):
 
         return sorted(windows, key=operator.attrgetter("last_focus_time"), reverse=True)
 
-    def get_workspaces(self, mru=False):
+    def get_workspaces(self, mru=False, active_output=False):
+        workspaces = []
+        if active_workspace := self.get_active_workspace():
+            for workspace in self.workspaces.values():
+                if not active_output or workspace.output == active_workspace.output:
+                    workspaces.append(workspace)
+
         if mru:
             return sorted(
-                self.workspaces.values(),
-                key=operator.attrgetter("last_focus_time"),
-                reverse=True,
+                workspaces, key=operator.attrgetter("last_focus_time"), reverse=True
             )
         else:
-            return sorted(self.workspaces.values(), key=operator.attrgetter("idx"))
+            return sorted(workspaces, key=operator.attrgetter("idx"))

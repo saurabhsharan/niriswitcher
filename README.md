@@ -138,6 +138,8 @@ By default, `niriswitcher` uses the following keybindings:
 - `Alt+q` to close the selected application
 - ``Alt+` `` to show the next workspace
 - ``Alt+Shift+` `` to show the previous workspace
+- `Alt+[1 to 5]` to show the workspace with index 1 to 5. Only enabled if
+  `current_output_only` is set to `true`
 
 - Release `Alt` to focus to currently selected application and close `niriswitcher`
 

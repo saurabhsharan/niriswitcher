@@ -34,6 +34,7 @@ class WorkspaceConfig:
 
 @dataclass(frozen=True)
 class KeysConfig:
+    modifier_mask: int = Gdk.ModifierType.ALT_MASK
     modifier: int = Gdk.KEY_Alt_L
     next: (int, int) = (Gdk.KEY_Tab, Gdk.ModifierType.ALT_MASK)
     prev: (int, int) = (
@@ -264,6 +265,7 @@ def load_configuration(config_path: str = None) -> Config:
 
     keys = KeysConfig(
         modifier=modifier,
+        modifier_mask=modifier_mask,
         next=parse_accelerator_key(next_key, modifier_mask),
         prev=parse_accelerator_key(prev_key, modifier_mask),
         close=parse_accelerator_key(close_key, modifier_mask),

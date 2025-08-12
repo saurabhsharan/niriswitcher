@@ -235,9 +235,10 @@ The other bindings are expressed as bindings, e.g.,
 bindings.
 
 > [!WARNING]
-> When using `Mod` or `Super` as the `modifier`, `niri` seems to inhibit
-> `Super+Escape` reaching `niriswitcher`. Please select another binding for
-> `abort`.
+> When using `Mod` or `Super` as the `modifier`, the default `niri` config
+> maps `Super+Escape` to the `toggle-keyboard-shortcuts-inhibit` action.
+> Either change the default binding in your `niri` config or select
+> another binding for `abort`.
 
 ### Themes
 

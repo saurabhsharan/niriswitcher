@@ -302,14 +302,6 @@ class NiriWindowManager(GObject.Object):
             else:
                 self.windows[window_id] = Window(window)
                 self.emit("window-opened", self.windows[window_id])
-        elif workspace_window := obj.get("WorkspaceActiveWindowChanged"):
-            workspace_id = workspace_window["workspace_id"]
-            self.active_workspace = workspace_id
-            window_id = workspace_window["active_window_id"]
-            if window_id in self.windows:
-                self.active_window = window_id
-                self.windows[window_id].last_focus_time = time.time()
-                self.emit("window-focus-changed", self.windows[window_id])
         elif window_focus_changed := obj.get("WindowFocusChanged"):
             window_id = window_focus_changed["id"]
             if window_id in self.windows:

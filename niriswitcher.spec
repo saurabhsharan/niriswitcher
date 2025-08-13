@@ -1,9 +1,9 @@
-%define version 0.7.0
+%define version 0.7.1
 
 Name:           niriswitcher
 Version:        %{version}
 Release:        1%{?dist}
-Summary:        Add your description here
+Summary:        An application switcher for niri
 
 License:        MIT
 URL:            https://github.com/isaksamsten/niriswitcher
@@ -41,6 +41,9 @@ An application switcher for niri.
 %{python3_sitelib}/niriswitcher*
 
 %changelog
+* Wed Aug 13 Isak Samsten <isak@samsten.se> - 0.7.1-1
+- Fix a bug where MRU order was incorrect while using the overview.
+
 * Mon June 16 Isak Samsten <isak@samsten.se> - 0.7.0-1
 - Add option to show windows/workspaces from current output only
 - Add number key workspace switching via keybindings

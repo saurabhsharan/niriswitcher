@@ -115,9 +115,12 @@ def control():
         "--workspace", action="store_true", help="Show workspace switcher"
     )
 
+    cycle_parser = subparsers.add_parser("cycle-app", help="Focus or cycle an application's windows")
+    cycle_parser.add_argument("--app-id", required=True, help="The app_id of the application to cycle")
+
     args = parser.parse_args()
 
-    if args.command != "show":
+    if args.command != "show" and args.command != "cycle-app":
         parser.print_help()
         return 1
 
@@ -133,10 +136,13 @@ def control():
             None,
         )
 
-        if args.window:
-            proxy.call_sync("application", None, Gio.DBusCallFlags.NONE, -1, None)
-        elif args.workspace:
-            proxy.call_sync("workspace", None, Gio.DBusCallFlags.NONE, -1, None)
+        if args.command == "show":
+            if args.window:
+                proxy.call_sync("application", None, Gio.DBusCallFlags.NONE, -1, None)
+            elif args.workspace:
+                proxy.call_sync("workspace", None, Gio.DBusCallFlags.NONE, -1, None)
+        elif args.command == "cycle-app":
+            proxy.call_sync("cycleApplication", GLib.Variant("(s)", (args.app_id,)), Gio.DBusCallFlags.NONE, -1, None)
 
         return 0
 
@@ -153,3 +159,118 @@ def control():
             file=sys.stderr,
         )
         return 1
+
+
+def dev():
+    from ctypes import CDLL
+
+    CDLL("libgtk4-layer-shell.so.0")
+
+    import gi
+
+    gi.require_version("Gtk4LayerShell", "1.0")
+    gi.require_version("Gtk", "4.0")
+    gi.require_version("Adw", "1")
+
+    import signal
+    import os
+
+    from ._config import (
+        config,
+        DEFAULT_CSS_PROVIDER,
+        DEFAULT_USER_CSS_PROVIDER,
+        DEFAULT_DARK_CSS_PROVIDER,
+        DEFAULT_DARK_USER_CSS_PROVIDER,
+    )
+
+    import logging
+
+    # Set up console logging for development
+    logging.basicConfig(
+        level=config.general.log_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[logging.StreamHandler()]
+    )
+
+    logger = logging.getLogger(__name__)
+
+    from ._app import NiriswicherApp
+    from ._wm import NiriWindowManager
+    from gi.repository import Gtk, Gdk
+
+    logger.info("Starting niriswitcher in development mode")
+    print("Starting niriswitcher in development mode 2")
+
+    def _set_dark_style():
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(),
+            DEFAULT_DARK_CSS_PROVIDER,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1,
+        )
+        if DEFAULT_DARK_USER_CSS_PROVIDER is not None:
+            Gtk.StyleContext.add_provider_for_display(
+                Gdk.Display.get_default(),
+                DEFAULT_DARK_USER_CSS_PROVIDER,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 3,
+            )
+
+    def on_dark(style_manager, prop):
+        if style_manager.get_dark():
+            _set_dark_style()
+        else:
+            Gtk.StyleContext.remove_provider_for_display(
+                Gdk.Display.get_default(), DEFAULT_DARK_CSS_PROVIDER
+            )
+            if DEFAULT_DARK_USER_CSS_PROVIDER is not None:
+                Gtk.StyleContext.remove_provider_for_display(
+                    Gdk.Display.get_default(), DEFAULT_DARK_USER_CSS_PROVIDER
+                )
+
+    window_manager = NiriWindowManager()
+    app = NiriswicherApp(window_manager)
+
+    def signal_handler(signum, frame):
+        logger.info(f"Received signal {signum}")
+        if app._should_present_windows():
+            if config.general.separate_workspaces:
+                app.window.populate_separate_workspaces(
+                    mru_sort=config.general.workspace_mru_sort,
+                    active_output=config.general.current_output_only,
+                )
+            else:
+                app.window.populate_unified_workspace(
+                    active_output=config.general.current_output_only
+                )
+            app.window.set_visible(True)
+
+    Gtk.StyleContext.add_provider_for_display(
+        Gdk.Display.get_default(),
+        DEFAULT_CSS_PROVIDER,
+        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+    )
+    if DEFAULT_USER_CSS_PROVIDER is not None:
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(),
+            DEFAULT_USER_CSS_PROVIDER,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 2,
+        )
+
+    if (
+        app.get_style_manager().get_dark() and config.appearance.system_theme == "auto"
+    ) or config.appearance.system_theme == "dark":
+        _set_dark_style()
+
+    if config.appearance.system_theme == "auto":
+        app.get_style_manager().connect("notify::dark", on_dark)
+
+    signal.signal(signal.SIGUSR1, signal_handler)
+    
+    # Don't register as DBus service in dev mode to avoid conflicts
+    logger.info("Development mode: skipping DBus registration")
+    logger.info("Send SIGUSR1 signal to show switcher: kill -USR1 %d", os.getpid())
+    
+    try:
+        app.run()
+    except KeyboardInterrupt:
+        logger.info("Received Ctrl+C, shutting down gracefully")
+        return 0

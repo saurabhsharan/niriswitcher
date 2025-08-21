@@ -80,6 +80,49 @@ NUMBER_KEY_TO_NUMBER: dict[int, int] = {
     Gdk.KEY_0: 10,
 }
 
+CYCLE_SESSION_TIMEOUT_SECONDS = 1.5
+
+
+class CycleSession:
+    def __init__(self, app_id: str, windows: list["Window"]):
+        self.app_id = app_id
+        self.original_windows = windows.copy()
+        self.current_index = 0
+        self.timer_id = None
+        print(f"[CycleSession] Starting session for {app_id} with {len(windows)} windows")
+        print(f"[CycleSession] Window order: {[w.title for w in windows]}")
+    
+    def get_current_window(self) -> "Window":
+        return self.original_windows[self.current_index]
+    
+    def cycle_next(self) -> "Window":
+        old_index = self.current_index
+        self.current_index = (self.current_index + 1) % len(self.original_windows)
+        current_window = self.get_current_window()
+        print(f"[CycleSession] Cycling from index {old_index} to {self.current_index}: {current_window.title} (ID: {current_window.id})")
+        print(f"[CycleSession] All windows in session: {[(i, w.title, w.id) for i, w in enumerate(self.original_windows)]}")
+        return current_window
+    
+    def extend_session(self, timeout_callback):
+        if self.timer_id:
+            GLib.source_remove(self.timer_id)
+        self.timer_id = GLib.timeout_add(
+            int(CYCLE_SESSION_TIMEOUT_SECONDS * 1000), 
+            timeout_callback
+        )
+        print(f"[CycleSession] Extended session for {self.app_id}")
+    
+    def is_active(self) -> bool:
+        """Check if the session timer is still active"""
+        return self.timer_id is not None
+    
+    def end_session(self):
+        if self.timer_id:
+            GLib.source_remove(self.timer_id)
+            self.timer_id = None
+        print(f"[CycleSession] Ended session for {self.app_id}")
+        return False
+
 
 class NiriswitcherWindow(Gtk.Window):
     def __init__(self, app, window_manager: NiriWindowManager):
@@ -462,6 +505,9 @@ class NiriswicherApp(Adw.Application):
             </method>
             <method name="workspace">
             </method>
+            <method name="cycleApplication">
+                <arg name="app_id" type="s" direction="in" />
+            </method>
             <property name="visible" type="b" access="read"/>
             <signal name="VisibilityChanged">
                 <arg name="visible" type="b"/>
@@ -477,6 +523,7 @@ class NiriswicherApp(Adw.Application):
         )
         self.window_manager = window_manager
         self._dbus_registration_id = None
+        self._cycle_session = None
 
     def do_activate(self):
         self.window = NiriswitcherWindow(self, self.window_manager)
@@ -521,6 +568,59 @@ class NiriswicherApp(Adw.Application):
         )
         n_workspaces = self.window_manager.get_n_workspaces(active_output=active_output)
         return n_windows > 0 and n_workspaces > 1
+
+    def _cycle_application_by_id(self, app_id: str):
+        if self.window.get_visible():
+            print(f"[CycleApp] Ignoring cycle request - switcher is already open")
+            return
+
+        app_windows = self.window_manager.get_windows_by_app_id(app_id)
+        if not app_windows:
+            print(f"[CycleApp] No windows found for app_id '{app_id}'")
+            return
+
+        if len(app_windows) == 1:
+            print(f"[CycleApp] Only one window for {app_id}, focusing it")
+            app_windows[0].focus()
+            return
+
+        create_new_session = (
+            self._cycle_session is None or 
+            self._cycle_session.app_id != app_id or
+            not self._cycle_session.is_active()
+        )
+        
+        if create_new_session:
+            print(f"[CycleApp] Creating new session (active: {self._cycle_session.is_active() if self._cycle_session else False})")
+            self._end_cycle_session()
+            self._cycle_session = CycleSession(app_id, app_windows)
+            
+            active_window_id = self.window_manager.active_window
+            print(f"[CycleApp] Active window ID: {active_window_id}")
+            print(f"[CycleApp] All app windows: {[(w.id, w.title) for w in app_windows]}")
+            
+            try:
+                current_window_idx = next(
+                    i for i, w in enumerate(app_windows) if w.id == active_window_id
+                )
+                self._cycle_session.current_index = current_window_idx
+                print(f"[CycleApp] Found current window at index {current_window_idx} ('{app_windows[current_window_idx].title}')")
+            except StopIteration:
+                print(f"[CycleApp] Current window not found in app windows, starting from -1")
+                self._cycle_session.current_index = -1
+
+        print(f"[CycleApp] Before cycle_next: current_index = {self._cycle_session.current_index}")
+        window_to_focus = self._cycle_session.cycle_next()
+        self._cycle_session.extend_session(self._end_cycle_session)
+        
+        print(f"[CycleApp] Focusing window: {window_to_focus.title} (ID: {window_to_focus.id})")
+        window_to_focus.focus()
+
+    def _end_cycle_session(self):
+        if self._cycle_session:
+            self._cycle_session.end_session()
+            self._cycle_session = None
+        return False
 
     def _handle_dbus_method(
         self,
@@ -569,6 +669,10 @@ class NiriswicherApp(Adw.Application):
                         )
                         self.window.set_visible(True)
                 invocation.return_value(None)
+            elif method_name == "cycleApplication":
+                    app_id = parameters.get_child_value(0).get_string()
+                    self._cycle_application_by_id(app_id)
+                    invocation.return_value(None)
         except Exception as e:
             logger.exception("Failed to handle DBus message")
             invocation.return_error_literal(

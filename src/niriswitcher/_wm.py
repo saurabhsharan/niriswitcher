@@ -408,6 +408,12 @@ class NiriWindowManager(GObject.Object):
 
         return sorted(windows, key=operator.attrgetter("last_focus_time"), reverse=True)
 
+    def get_windows_by_app_id(self, app_id: str) -> list[Window]:
+        app_windows = [
+            w for w in self.windows.values() if w.app_id and w.app_id.lower() == app_id.lower()
+        ]
+        return sorted(app_windows, key=operator.attrgetter("last_focus_time"), reverse=True)
+
     def get_workspaces(self, mru=False, active_output=False):
         workspaces = []
         if active_workspace := self.get_active_workspace():
